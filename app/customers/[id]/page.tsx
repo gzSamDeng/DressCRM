@@ -1,0 +1,42 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { addFollowUp, deleteCustomer } from "@/app/actions";
+import { Header } from "@/components/header";
+import { createClient } from "@/lib/supabase/server";
+import type { Customer, FollowUp } from "@/types/database";
+
+export default async function CustomerPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const [{ data: customer }, { data: followUps }] = await Promise.all([
+    supabase.from("customers").select("*").eq("id", id).single(),
+    supabase.from("follow_ups").select("*").eq("customer_id", id).order("happened_at", { ascending: false }),
+  ]);
+  if (!customer) notFound();
+  const c = customer as Customer;
+  const addAction = addFollowUp.bind(null, id);
+  const delAction = deleteCustomer.bind(null, id);
+
+  const fields = [
+    ["官网", c.website],["国家/城市",[c.country,c.city].filter(Boolean).join(" / ")],["客户类型",c.customer_type],
+    ["等级",c.priority],["阶段",c.stage],["产品分类",c.product_category],["Premium匹配",c.premium_fit],["Couture匹配",c.couture_fit],
+    ["价格",c.price_example || c.price_status],["进口概率",c.import_probability],["邮箱",c.contact_email],["WhatsApp",c.whatsapp],
+    ["建议产品线",c.recommended_line],["判断依据",c.evidence],["备注",c.notes]
+  ];
+
+  return <div className="shell"><Header/><main className="container">
+    <div className="sectionTitle"><h2>{c.company}</h2><div className="toolbar"><Link className="primary" href={`/customers/${id}/edit`}>编辑</Link><form action={delAction}><button className="danger">删除</button></form></div></div>
+    <div className="grid2">
+      <section className="card"><h3>客户资料</h3><div className="detailGrid">{fields.map(([k,v])=><div key={String(k)}><strong>{k}</strong><br/>{String(v ?? "")}</div>)}</div></section>
+      <section className="card"><h3>新增跟进记录</h3><form action={addAction} className="form">
+        <label>渠道<select name="channel">{["Email","WhatsApp","Phone","LinkedIn","Website Form","Meeting"].map(x=><option key={x}>{x}</option>)}</select></label>
+        <label>时间<input name="happened_at" type="datetime-local" defaultValue={new Date().toISOString().slice(0,16)}/></label>
+        <label>跟进摘要<textarea name="summary" required/></label>
+        <label>结果<input name="outcome"/></label>
+        <label>下一步<input name="next_action"/></label>
+        <button className="primary">保存跟进</button>
+      </form></section>
+    </div>
+    <section className="card" style={{marginTop:16}}><h3>跟进历史</h3><div className="timeline">{(followUps as FollowUp[] ?? []).map(f=><div className="timelineItem" key={f.id}><strong>{new Date(f.happened_at).toLocaleString("zh-CN")} · {f.channel}</strong><p>{f.summary}</p><small>{f.outcome || ""} {f.next_action ? `｜下一步：${f.next_action}` : ""}</small></div>)}{!followUps?.length && <p className="muted">还没有跟进记录。</p>}</div></section>
+  </main></div>;
+}
