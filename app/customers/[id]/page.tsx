@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { addFollowUp, deleteCustomer } from "@/app/actions";
 import { Header } from "@/components/header";
+import { DeleteLeadForm } from "@/components/delete-lead-form";
 import { createClient } from "@/lib/supabase/server";
 import type { Customer, FollowUp } from "@/types/database";
 
@@ -25,9 +26,10 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   ];
 
   return <div className="shell"><Header/><main className="container">
-    <div className="sectionTitle"><h2>{c.company}</h2><div className="toolbar"><Link className="primary" href={`/customers/${id}/edit`}>编辑</Link><form action={delAction}><button className="danger">删除</button></form></div></div>
+    <div className="breadcrumb"><Link href="/">客户线索</Link> <span>/</span> {c.company}</div>
+    <div className="sectionTitle"><div><h2>{c.company}</h2><p className="muted">{[c.city,c.country,c.customer_type].filter(Boolean).join(" · ")}</p></div><div className="toolbar"><Link className="secondaryButton" href="/">返回列表</Link><Link className="primary" href={`/customers/${id}/edit`}>编辑线索</Link><DeleteLeadForm action={delAction} company={c.company}/></div></div>
     <div className="grid2">
-      <section className="card"><h3>客户资料</h3><div className="detailGrid">{fields.map(([k,v])=><div key={String(k)}><strong>{k}</strong><br/>{String(v ?? "")}</div>)}</div></section>
+      <section className="card"><h3>线索资料</h3><div className="detailGrid">{fields.map(([k,v])=><div key={String(k)}><strong>{k}</strong><br/>{String(v ?? "—")}</div>)}</div></section>
       <section className="card"><h3>新增跟进记录</h3><form action={addAction} className="form">
         <label>渠道<select name="channel">{["Email","WhatsApp","Phone","LinkedIn","Website Form","Meeting"].map(x=><option key={x}>{x}</option>)}</select></label>
         <label>时间<input name="happened_at" type="datetime-local" defaultValue={new Date().toISOString().slice(0,16)}/></label>

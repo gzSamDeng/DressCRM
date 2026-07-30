@@ -1,9 +1,14 @@
 import "./globals.css";
+import "./system.css";
+import "./search-status.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "DressCRM",
-  description: "Evening dress foreign trade CRM",
+  title: {
+    default: "冰锋外贸获客及管理系统",
+    template: "%s · 冰锋外贸获客及管理系统",
+  },
+  description: "AI 驱动的外贸获客、线索评分与客户管理系统",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

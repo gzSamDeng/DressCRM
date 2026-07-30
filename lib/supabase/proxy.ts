@@ -3,6 +3,11 @@ import { NextResponse, type NextRequest } from "next/server";
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
+  const isLeadDemo =
+    process.env.LEAD_INTELLIGENCE_DEMO_MODE === "true" &&
+    request.nextUrl.pathname.startsWith("/lead-intelligence");
+
+  if (isLeadDemo) return response;
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

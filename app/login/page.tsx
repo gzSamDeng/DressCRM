@@ -5,7 +5,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <main className="loginPage">
       <form action={login} className="loginCard form">
-        <h1>DressCRM 登录</h1>
+        <h1>冰锋外贸获客及管理系统</h1>
         <p className="muted">使用你在 Supabase Authentication 中创建的账号。</p>
         {params.error && <div className="error">{params.error}</div>}
         <label>邮箱<input type="email" name="email" required/></label>
