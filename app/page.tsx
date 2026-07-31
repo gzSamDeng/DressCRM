@@ -16,11 +16,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
   const { data, count: filteredTotal, error } = await query;
   if (error) throw new Error(error.message);
   const priorityRank: Record<string, number> = { "A+": 0, A: 1, B: 2, C: 3, D: 4 };
-  const now = Date.now();
-  const followRank = (customer: Customer) => {
-    if (!customer.next_follow_up_at) return 2;
-    return new Date(customer.next_follow_up_at).getTime() <= now ? 0 : 1;
-  };
+  const followRank = (customer: Customer) => customer.next_follow_up_at ? 0 : 1;
   const sortedCustomers = ((data ?? []) as Customer[]).sort((a, b) =>
     (priorityRank[a.priority] ?? 9) - (priorityRank[b.priority] ?? 9)
     || followRank(a) - followRank(b)
