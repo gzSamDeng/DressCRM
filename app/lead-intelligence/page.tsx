@@ -25,6 +25,7 @@ export default async function LeadIntelligencePage({ searchParams }: {
     .from("discovered_leads")
     .select("*", { count: "exact" })
     .eq("review_status", status)
+    .order("ai_score", { ascending: false })
     .order("created_at", { ascending: false })
     .range((page - 1) * pageSize, page * pageSize - 1);
   if (error) throw new Error(error.message);
