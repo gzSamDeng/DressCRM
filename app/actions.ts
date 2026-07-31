@@ -76,17 +76,31 @@ export async function deleteCustomer(id: string) {
   redirect("/");
 }
 
-export async function addFollowUp(customerId: string, formData: FormData) {
+export type FollowUpActionState = { ok: boolean; message: string };
+
+export async function addFollowUp(
+  customerId: string,
+  _previousState: FollowUpActionState,
+  formData: FormData,
+): Promise<FollowUpActionState> {
   const supabase = await createClient();
+  const summary = String(formData.get("summary") ?? "").trim();
+  if (!summary) return { ok: false, message: "请填写跟进摘要。" };
+  const happenedAt = new Date(value(formData, "happened_at") ?? new Date().toISOString());
+  if (Number.isNaN(happenedAt.getTime())) return { ok: false, message: "跟进时间格式不正确。" };
   const payload = {
     customer_id: customerId,
     channel: String(formData.get("channel") ?? "Email"),
-    summary: String(formData.get("summary") ?? "").trim(),
+    summary,
     outcome: value(formData, "outcome"),
     next_action: value(formData, "next_action"),
-    happened_at: String(formData.get("happened_at") ?? new Date().toISOString()),
+    happened_at: happenedAt.toISOString(),
   };
   const { error } = await supabase.from("follow_ups").insert(payload);
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("Failed to save follow-up", { code: error.code, message: error.message, customerId });
+    return { ok: false, message: `保存失败：${error.message}` };
+  }
   revalidatePath(`/customers/${customerId}`);
+  return { ok: true, message: "跟进记录已保存。" };
 }
