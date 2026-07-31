@@ -8,14 +8,27 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
   const page = Math.max(1, Number(params.page ?? 1) || 1);
   const pageSize = 20;
   const supabase = await createClient();
-  let query = supabase.from("customers").select("*", { count: "exact" }).order("priority").order("company");
+  let query = supabase.from("customers").select("*", { count: "exact" });
   const safeSearch = params.q?.trim().replace(/[,%()]/g, " ");
   if (safeSearch) query = query.or(`company.ilike.%${safeSearch}%,customer_type.ilike.%${safeSearch}%,notes.ilike.%${safeSearch}%`);
   if (params.priority) query = query.eq("priority", params.priority);
   if (params.category) query = query.eq("product_category", params.category);
-  const { data, count: filteredTotal, error } = await query.range((page - 1) * pageSize, page * pageSize - 1);
+  const { data, count: filteredTotal, error } = await query;
   if (error) throw new Error(error.message);
-  const customers = (data ?? []) as Customer[];
+  const priorityRank: Record<string, number> = { "A+": 0, A: 1, B: 2, C: 3, D: 4 };
+  const now = Date.now();
+  const followRank = (customer: Customer) => {
+    if (!customer.next_follow_up_at) return 2;
+    return new Date(customer.next_follow_up_at).getTime() <= now ? 0 : 1;
+  };
+  const sortedCustomers = ((data ?? []) as Customer[]).sort((a, b) =>
+    (priorityRank[a.priority] ?? 9) - (priorityRank[b.priority] ?? 9)
+    || followRank(a) - followRank(b)
+    || (a.next_follow_up_at ? new Date(a.next_follow_up_at).getTime() : Number.MAX_SAFE_INTEGER)
+      - (b.next_follow_up_at ? new Date(b.next_follow_up_at).getTime() : Number.MAX_SAFE_INTEGER)
+    || a.company.localeCompare(b.company),
+  );
+  const customers = sortedCustomers.slice((page - 1) * pageSize, page * pageSize);
 
   const { count: total } = await supabase.from("customers").select("*", { count: "exact", head: true });
   const { count: ap } = await supabase.from("customers").select("*", { count: "exact", head: true }).eq("priority","A+");
