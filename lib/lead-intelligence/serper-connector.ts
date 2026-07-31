@@ -13,14 +13,20 @@ type SerperResponse = {
 };
 
 const signalPatterns: Array<[BuyerSignal, RegExp]> = [
-  ["importer", /\b(import|importer|international sourcing|global sourcing)\b/i],
+  ["importer", /\b(import|importer|ithalat|international sourcing|global sourcing)\b/i],
   ["multi_brand", /\b(multi[- ]brand|designer brands|brands we carry|our brands)\b/i],
   ["premium_positioning", /\b(luxury|premium|designer|couture|exclusive|high[- ]end)\b/i],
-  ["evening_dress_focus", /\b(evening|occasion|gala|prom|abiye|cocktail dress)\b/i],
-  ["wholesale", /\b(wholesale|distributor|distribution|trade|retail partners)\b/i],
+  ["evening_dress_focus", /\b(evening|occasion|gala|prom|abiye|gece elbisesi|cocktail dress)\b/i],
+  ["wholesale", /\b(wholesale|toptan|distributor|distribution|trade|retail partners)\b/i],
   ["international_brands", /\b(international brands|global brands|designer labels)\b/i],
   ["physical_stores", /\b(store|stores|showroom|boutique|locations)\b/i],
   ["active_social", /\b(instagram|facebook|tiktok|social)\b/i],
+];
+
+const blockedHosts = [
+  "instagram.com", "facebook.com", "youtube.com", "tiktok.com", "pinterest.com",
+  "linkedin.com", "x.com", "twitter.com", "amazon.", "aliexpress.", "trendyol.",
+  "hepsiburada.", "wikipedia.org",
 ];
 
 function companyFromTitle(title: string, hostname: string) {
@@ -49,6 +55,9 @@ function toCandidate(result: SerperOrganicResult): LeadCandidate | null {
   }
 
   const hostname = url.hostname.toLowerCase().replace(/^www\./, "");
+  if (blockedHosts.some((host) => hostname === host || hostname.endsWith(`.${host}`) || hostname.includes(host))) {
+    return null;
+  }
   return {
     id: hostname,
     company: companyFromTitle(result.title, hostname),
@@ -73,8 +82,10 @@ export async function searchWithSerper(queries: string[]) {
   const apiKey = process.env.SERPER_API_KEY;
   if (!apiKey) throw new Error("尚未配置 SERPER_API_KEY。");
 
-  const responses = await Promise.all(
-    queries.map(async (query) => {
+  const responses: SerperOrganicResult[][] = [];
+  for (let index = 0; index < queries.length; index += 10) {
+    const batch = await Promise.all(
+      queries.slice(index, index + 10).map(async (query) => {
       const response = await fetch("https://google.serper.dev/search", {
         method: "POST",
         headers: {
@@ -110,8 +121,10 @@ export async function searchWithSerper(queries: string[]) {
       const data = (await response.json()) as SerperResponse;
       if (data.message) throw new Error(data.message);
       return data.organic ?? [];
-    }),
-  );
+      }),
+    );
+    responses.push(...batch);
+  }
 
   const unique = new Map<string, LeadCandidate>();
   responses.flat().forEach((result) => {

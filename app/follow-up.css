@@ -1,0 +1,10 @@
+.formSuccess,
+.formError {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.formSuccess { background: #e7f5ec; color: #226240; }
+.formError { background: #fff0ed; color: #9f2f22; }
+.form button:disabled { cursor: wait; opacity: .7; }
