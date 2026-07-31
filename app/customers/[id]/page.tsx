@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { addFollowUp, deleteCustomer } from "@/app/actions";
 import { Header } from "@/components/header";
 import { DeleteLeadForm } from "@/components/delete-lead-form";
+import { FollowUpForm } from "@/components/follow-up-form";
 import { createClient } from "@/lib/supabase/server";
 import type { Customer, FollowUp } from "@/types/database";
 
@@ -30,14 +31,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
     <div className="sectionTitle"><div><h2>{c.company}</h2><p className="muted">{[c.city,c.country,c.customer_type].filter(Boolean).join(" · ")}</p></div><div className="toolbar"><Link className="secondaryButton" href="/">返回列表</Link><Link className="primary" href={`/customers/${id}/edit`}>编辑线索</Link><DeleteLeadForm action={delAction} company={c.company}/></div></div>
     <div className="grid2">
       <section className="card"><h3>线索资料</h3><div className="detailGrid">{fields.map(([k,v])=><div key={String(k)}><strong>{k}</strong><br/>{String(v ?? "—")}</div>)}</div></section>
-      <section className="card"><h3>新增跟进记录</h3><form action={addAction} className="form">
-        <label>渠道<select name="channel">{["Email","WhatsApp","Phone","LinkedIn","Website Form","Meeting"].map(x=><option key={x}>{x}</option>)}</select></label>
-        <label>时间<input name="happened_at" type="datetime-local" defaultValue={new Date().toISOString().slice(0,16)}/></label>
-        <label>跟进摘要<textarea name="summary" required/></label>
-        <label>结果<input name="outcome"/></label>
-        <label>下一步<input name="next_action"/></label>
-        <button className="primary">保存跟进</button>
-      </form></section>
+      <section className="card"><h3>新增跟进记录</h3><FollowUpForm action={addAction}/></section>
     </div>
     <section className="card" style={{marginTop:16}}><h3>跟进历史</h3><div className="timeline">{(followUps as FollowUp[] ?? []).map(f=><div className="timelineItem" key={f.id}><strong>{new Date(f.happened_at).toLocaleString("zh-CN")} · {f.channel}</strong><p>{f.summary}</p><small>{f.outcome || ""} {f.next_action ? `｜下一步：${f.next_action}` : ""}</small></div>)}{!followUps?.length && <p className="muted">还没有跟进记录。</p>}</div></section>
   </main></div>;
