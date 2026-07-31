@@ -1,15 +1,15 @@
 import type { BuyerSignal, LeadCandidate } from "./types";
 
-type SerpApiOrganicResult = {
+type SerperOrganicResult = {
   title?: string;
   link?: string;
   snippet?: string;
   position?: number;
 };
 
-type SerpApiResponse = {
-  organic_results?: SerpApiOrganicResult[];
-  error?: string;
+type SerperResponse = {
+  organic?: SerperOrganicResult[];
+  message?: string;
 };
 
 const signalPatterns: Array<[BuyerSignal, RegExp]> = [
@@ -29,19 +29,26 @@ function companyFromTitle(title: string, hostname: string) {
   return hostname.replace(/^www\./, "").split(".")[0].replace(/[-_]/g, " ");
 }
 
-function toCandidate(result: SerpApiOrganicResult): LeadCandidate | null {
+function toCandidate(result: SerperOrganicResult): LeadCandidate | null {
   if (!result.link || !result.title) return null;
+
   let url: URL;
   try {
     url = new URL(result.link);
   } catch {
     return null;
   }
-  const text = `${result.title} ${result.snippet ?? ""}`;
-  const signals = signalPatterns.filter(([, pattern]) => pattern.test(text)).map(([signal]) => signal);
-  if (!signals.includes("evening_dress_focus") && !signals.includes("premium_positioning")) return null;
-  const hostname = url.hostname.toLowerCase().replace(/^www\./, "");
 
+  const text = `${result.title} ${result.snippet ?? ""}`;
+  const signals = signalPatterns
+    .filter(([, pattern]) => pattern.test(text))
+    .map(([signal]) => signal);
+
+  if (!signals.includes("evening_dress_focus") && !signals.includes("premium_positioning")) {
+    return null;
+  }
+
+  const hostname = url.hostname.toLowerCase().replace(/^www\./, "");
   return {
     id: hostname,
     company: companyFromTitle(result.title, hostname),
@@ -56,29 +63,42 @@ function toCandidate(result: SerpApiOrganicResult): LeadCandidate | null {
     description: result.snippet ?? result.title,
     sourceUrl: result.link,
     signals,
-    evidence: [result.title, result.snippet].filter((value): value is string => Boolean(value)),
+    evidence: [result.title, result.snippet].filter(
+      (value): value is string => Boolean(value),
+    ),
   };
 }
 
-export async function searchWithSerpApi(queries: string[]) {
-  const apiKey = process.env.SERPAPI_API_KEY;
-  if (!apiKey) throw new Error("尚未配置 SERPAPI_API_KEY。");
+export async function searchWithSerper(queries: string[]) {
+  const apiKey = process.env.SERPER_API_KEY;
+  if (!apiKey) throw new Error("尚未配置 SERPER_API_KEY。");
 
   const responses = await Promise.all(
     queries.map(async (query) => {
-      const url = new URL("https://serpapi.com/search.json");
-      url.searchParams.set("engine", "google");
-      url.searchParams.set("q", query);
-      url.searchParams.set("location", "Turkey");
-      url.searchParams.set("hl", "en");
-      url.searchParams.set("gl", "tr");
-      url.searchParams.set("num", "10");
-      url.searchParams.set("api_key", apiKey);
-      const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(20_000) });
-      if (!response.ok) throw new Error(`SerpApi 请求失败（${response.status}）。`);
-      const data = (await response.json()) as SerpApiResponse;
-      if (data.error) throw new Error(data.error);
-      return data.organic_results ?? [];
+      const response = await fetch("https://google.serper.dev/search", {
+        method: "POST",
+        headers: {
+          "X-API-KEY": apiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          q: query,
+          gl: "tr",
+          hl: "en",
+          location: "Turkey",
+          num: 10,
+        }),
+        cache: "no-store",
+        signal: AbortSignal.timeout(20_000),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Serper 搜索请求失败（${response.status}）。`);
+      }
+
+      const data = (await response.json()) as SerperResponse;
+      if (data.message) throw new Error(data.message);
+      return data.organic ?? [];
     }),
   );
 
@@ -87,7 +107,10 @@ export async function searchWithSerpApi(queries: string[]) {
     const candidate = toCandidate(result);
     if (!candidate) return;
     const existing = unique.get(candidate.id);
-    if (!existing || candidate.signals.length > existing.signals.length) unique.set(candidate.id, candidate);
+    if (!existing || candidate.signals.length > existing.signals.length) {
+      unique.set(candidate.id, candidate);
+    }
   });
+
   return [...unique.values()];
 }

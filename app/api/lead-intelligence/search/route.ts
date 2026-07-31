@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { eveningDressTemplate } from "@/lib/lead-intelligence/evening-dress";
 import { scoreLead } from "@/lib/lead-intelligence/score";
-import { searchWithSerpApi } from "@/lib/lead-intelligence/serpapi-connector";
+import { searchWithSerper } from "@/lib/lead-intelligence/serper-connector";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     .insert({
       template_id: template.id,
       query: baseQuery,
-      connector: "serpapi",
+      connector: "serper",
       status: "running",
       minimum_score: minimumScore,
       started_at: new Date().toISOString(),
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
   if (jobError || !job) return NextResponse.json({ error: jobError?.message ?? "无法创建搜索任务。" }, { status: 500 });
 
   try {
-    const candidates = await searchWithSerpApi(queries);
+    const candidates = await searchWithSerper(queries);
     const scoredLeads = candidates.map(scoreLead).filter((lead) => lead.score >= minimumScore).sort((a, b) => b.score - a.score);
     if (scoredLeads.length) {
       const { error: insertError } = await supabase.from("discovered_leads").insert(

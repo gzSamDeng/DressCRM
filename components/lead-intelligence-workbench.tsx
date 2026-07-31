@@ -61,7 +61,7 @@ export function LeadIntelligenceWorkbench() {
         </div>
         <div className="connectorStatus">
           <span className="statusDot" />
-          <div><strong>SerpApi · Google Search</strong><small>真实网页搜索，服务端安全调用</small></div>
+          <div><strong>Serper · Google Search</strong><small>真实网页搜索，服务端安全调用</small></div>
         </div>
       </aside>
 
@@ -139,7 +139,7 @@ export function LeadIntelligenceWorkbench() {
                 </article>
               ))}
             </div>
-            <p className="demoNotice">首次打开显示演示结果；点击“重新运行搜索”后将使用 SerpApi 获取真实 Google 搜索结果，并保存搜索任务与候选线索。</p>
+            <p className="demoNotice">首次打开显示演示结果；点击“重新运行搜索”后将使用 Serper 获取真实 Google 搜索结果，并保存搜索任务与候选线索。</p>
           </>
         )}
       </section>
