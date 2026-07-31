@@ -4,6 +4,8 @@ import { eveningDressTemplate } from "@/lib/lead-intelligence/evening-dress";
 import { scoreLead } from "@/lib/lead-intelligence/score";
 import { searchWithSerper } from "@/lib/lead-intelligence/serper-connector";
 
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: authData } = await supabase.auth.getUser();
@@ -12,7 +14,17 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as { query?: string; minimumScore?: number };
   const minimumScore = Math.min(100, Math.max(0, Number(body.minimumScore ?? 45)));
   const baseQuery = body.query?.trim() || "Turkey evening dress importer boutique";
-  const queries = eveningDressTemplate.keywords.map((keyword) => `${baseQuery} "${keyword}"`);
+  const cities = ["Istanbul","Ankara","Izmir","Bursa","Antalya","Adana","Gaziantep","Konya","Mersin","Kayseri","Samsun","Trabzon"];
+  const intents = [
+    "abiye mağazası butik",
+    "lüks abiye tasarım mağazası",
+    "toptan abiye distribütör",
+    "evening dress boutique",
+    "designer occasion wear store",
+  ];
+  const queries = cities.flatMap((city) =>
+    intents.map((intent) => `${baseQuery} ${city} ${intent} -site:instagram.com -site:facebook.com -site:trendyol.com`),
+  );
 
   const { data: template } = await supabase
     .from("intelligence_templates")
@@ -39,7 +51,19 @@ export async function POST(request: Request) {
 
   try {
     const candidates = await searchWithSerper(queries);
-    const scoredLeads = candidates.map(scoreLead).filter((lead) => lead.score >= minimumScore).sort((a, b) => b.score - a.score);
+    const [{ data: customerRows }, { data: discoveredRows }] = await Promise.all([
+      supabase.from("customers").select("website"),
+      supabase.from("discovered_leads").select("website"),
+    ]);
+    const knownWebsites = new Set(
+      [...(customerRows ?? []), ...(discoveredRows ?? [])]
+        .map((row) => row.website?.toLowerCase().replace(/\/$/, ""))
+        .filter(Boolean),
+    );
+    const newCandidates = candidates.filter(
+      (candidate) => !knownWebsites.has(candidate.website.toLowerCase().replace(/\/$/, "")),
+    );
+    const scoredLeads = newCandidates.map(scoreLead).sort((a, b) => b.score - a.score);
     if (scoredLeads.length) {
       const { error: insertError } = await supabase.from("discovered_leads").insert(
         scoredLeads.map((lead) => ({
@@ -63,10 +87,15 @@ export async function POST(request: Request) {
     }
     await supabase.from("search_jobs").update({
       status: "complete",
-      candidates_found: candidates.length,
+      candidates_found: newCandidates.length,
       completed_at: new Date().toISOString(),
     }).eq("id", job.id);
-    return NextResponse.json({ jobId: job.id, candidatesFound: candidates.length, leads: scoredLeads });
+    return NextResponse.json({
+      jobId: job.id,
+      candidatesFound: newCandidates.length,
+      qualifiedCount: scoredLeads.filter((lead) => lead.score >= minimumScore).length,
+      leads: scoredLeads,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "搜索失败。";
     await supabase.from("search_jobs").update({ status: "failed", completed_at: new Date().toISOString() }).eq("id", job.id);
