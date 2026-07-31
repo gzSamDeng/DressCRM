@@ -93,7 +93,18 @@ export async function searchWithSerper(queries: string[]) {
       });
 
       if (!response.ok) {
-        throw new Error(`Serper 搜索请求失败（${response.status}）。`);
+        const errorBody = await response.text();
+        let detail = errorBody.trim();
+        try {
+          const parsed = JSON.parse(errorBody) as { message?: string; error?: string };
+          detail = parsed.message ?? parsed.error ?? detail;
+        } catch {
+          // Keep the plain-text response when Serper does not return JSON.
+        }
+        const safeDetail = detail.slice(0, 180);
+        throw new Error(
+          `Serper 搜索请求失败（${response.status}）${safeDetail ? `：${safeDetail}` : "。"}`
+        );
       }
 
       const data = (await response.json()) as SerperResponse;
