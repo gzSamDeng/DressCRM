@@ -2,21 +2,17 @@
 
 import { useState } from "react";
 import { createCustomer } from "@/app/actions";
-import { demoCandidates } from "@/lib/lead-intelligence/demo-connector";
 import { eveningDressTemplate } from "@/lib/lead-intelligence/evening-dress";
-import { scoreLead } from "@/lib/lead-intelligence/score";
 import type { ScoredLead } from "@/lib/lead-intelligence/types";
 
 type RunState = "ready" | "searching" | "complete";
 
 export function LeadIntelligenceWorkbench() {
-  const [runState, setRunState] = useState<RunState>("complete");
+  const [runState, setRunState] = useState<RunState>("ready");
   const [minimumScore, setMinimumScore] = useState(45);
   const [query, setQuery] = useState("Turkey luxury evening dress importer boutique");
-  const [results, setResults] = useState<ScoredLead[]>(
-    demoCandidates.map(scoreLead).filter((lead) => lead.score >= 45).sort((a, b) => b.score - a.score),
-  );
-  const [candidatesFound, setCandidatesFound] = useState(demoCandidates.length);
+  const [results, setResults] = useState<ScoredLead[]>([]);
+  const [candidatesFound, setCandidatesFound] = useState(0);
   const [error, setError] = useState("");
 
   async function runSearch() {
@@ -122,7 +118,11 @@ export function LeadIntelligenceWorkbench() {
                     <div className="recommendation"><strong>AI 建议</strong>{lead.recommendation}</div>
                   </div>
                   <div className="leadActions">
-                    <a href={lead.sourceUrl} target="_blank" rel="noreferrer">查看证据</a>
+                    <details className="evidenceDetails">
+                      <summary>查看证据</summary>
+                      <div>{lead.evidence.map((item) => <p key={item}>{item}</p>)}</div>
+                      {lead.sourceUrl && <a href={lead.sourceUrl} target="_blank" rel="noreferrer">打开原始网页（可能受网站限制）</a>}
+                    </details>
                     <form action={createCustomer}>
                       <input type="hidden" name="company" value={lead.company} /><input type="hidden" name="website" value={lead.website} />
                       <input type="hidden" name="country" value={lead.country} /><input type="hidden" name="city" value={lead.city} />
@@ -139,7 +139,7 @@ export function LeadIntelligenceWorkbench() {
                 </article>
               ))}
             </div>
-            <p className="demoNotice">首次打开显示演示结果；点击“重新运行搜索”后将使用 Serper 获取真实 Google 搜索结果，并保存搜索任务与候选线索。</p>
+            <p className="demoNotice">本次搜索结果已保存到下方待审核中心，可分页查看，不会因刷新页面而丢失。</p>
           </>
         )}
       </section>

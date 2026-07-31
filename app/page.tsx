@@ -3,15 +3,17 @@ import { Header } from "@/components/header";
 import { createClient } from "@/lib/supabase/server";
 import type { Customer } from "@/types/database";
 
-export default async function Home({ searchParams }: { searchParams: Promise<{ q?: string; priority?: string; category?: string }> }) {
+export default async function Home({ searchParams }: { searchParams: Promise<{ q?: string; priority?: string; category?: string; page?: string }> }) {
   const params = await searchParams;
+  const page = Math.max(1, Number(params.page ?? 1) || 1);
+  const pageSize = 20;
   const supabase = await createClient();
-  let query = supabase.from("customers").select("*").order("priority").order("company");
+  let query = supabase.from("customers").select("*", { count: "exact" }).order("priority").order("company");
   const safeSearch = params.q?.trim().replace(/[,%()]/g, " ");
   if (safeSearch) query = query.or(`company.ilike.%${safeSearch}%,customer_type.ilike.%${safeSearch}%,notes.ilike.%${safeSearch}%`);
   if (params.priority) query = query.eq("priority", params.priority);
   if (params.category) query = query.eq("product_category", params.category);
-  const { data, error } = await query;
+  const { data, count: filteredTotal, error } = await query.range((page - 1) * pageSize, page * pageSize - 1);
   if (error) throw new Error(error.message);
   const customers = (data ?? []) as Customer[];
 
@@ -19,6 +21,15 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
   const { count: ap } = await supabase.from("customers").select("*", { count: "exact", head: true }).eq("priority","A+");
   const { count: premium } = await supabase.from("customers").select("*", { count: "exact", head: true }).gte("premium_fit",90);
   const { count: couture } = await supabase.from("customers").select("*", { count: "exact", head: true }).gte("couture_fit",90);
+  const pageCount = Math.max(1, Math.ceil((filteredTotal ?? 0) / pageSize));
+  const pageHref = (nextPage: number) => {
+    const next = new URLSearchParams();
+    if (params.q) next.set("q", params.q);
+    if (params.priority) next.set("priority", params.priority);
+    if (params.category) next.set("category", params.category);
+    next.set("page", String(nextPage));
+    return `/?${next.toString()}`;
+  };
 
   return <div className="shell">
     <Header/>
@@ -36,7 +47,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
         <select name="category" defaultValue={params.category ?? ""}><option value="">全部产品线</option>{["Premium Evening Dress","Heavy Hand-beaded Couture","Both","Unclassified"].map(x=><option key={x}>{x}</option>)}</select>
         <button className="primary">应用筛选</button>
         {(params.q || params.priority || params.category) && <Link className="secondaryButton" href="/">清除筛选</Link>}
-        <span className="resultCount">当前显示 {customers.length} 条</span>
+        <span className="resultCount">当前显示 {customers.length} 条 · 筛选结果 {filteredTotal ?? 0} / 全部 {total ?? 0} 条</span>
       </form>
       <div className="tableWrap">
         <table className="table"><thead><tr><th>等级</th><th>公司</th><th>客户类型</th><th>产品分类</th><th>Premium</th><th>Couture</th><th>价格</th><th>进口概率</th><th>阶段</th><th>下次跟进</th><th>操作</th></tr></thead>
@@ -49,6 +60,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
         {!customers.length && <tr><td className="emptyTable" colSpan={11}><strong>没有找到符合条件的线索</strong><span>尝试清除筛选，或新增一条客户线索。</span><div><Link className="secondaryButton" href="/">清除筛选</Link><Link className="primary" href="/customers/new">新增线索</Link></div></td></tr>}
         </tbody></table>
       </div>
+      <div className="pagination"><Link aria-disabled={page <= 1} href={pageHref(Math.max(1, page - 1))}>上一页</Link><span>第 {page} / {pageCount} 页</span><Link aria-disabled={page >= pageCount} href={pageHref(Math.min(pageCount, page + 1))}>下一页</Link></div>
     </main>
   </div>;
 }

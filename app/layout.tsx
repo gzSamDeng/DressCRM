@@ -2,6 +2,7 @@ import "./globals.css";
 import "./system.css";
 import "./search-status.css";
 import "./follow-up.css";
+import "./review.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {

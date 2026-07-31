@@ -104,3 +104,68 @@ export async function addFollowUp(
   revalidatePath(`/customers/${customerId}`);
   return { ok: true, message: "跟进记录已保存。" };
 }
+
+export async function approveDiscoveredLead(id: string) {
+  const supabase = await createClient();
+  const { data: lead, error: leadError } = await supabase
+    .from("discovered_leads")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (leadError || !lead) throw new Error(leadError?.message ?? "待审核线索不存在。");
+
+  let customerId: string | null = lead.customer_id;
+  if (!customerId) {
+    const customer = {
+      company: lead.company,
+      website: lead.website,
+      country: lead.country,
+      city: lead.city,
+      customer_type: lead.customer_type,
+      priority: lead.ai_grade,
+      stage: "New Lead",
+      product_category: "Premium Evening Dress",
+      premium_fit: lead.ai_score,
+      couture_fit: Math.max(0, lead.ai_score - 8),
+      import_probability: (lead.signals ?? []).includes("importer") ? "High" : "Needs verification",
+      buyer_value: `AI Score ${lead.ai_score} · ${lead.ai_grade}`,
+      recommended_line: lead.recommendation,
+      evidence: (lead.evidence ?? []).join("\n"),
+      source_url: lead.source_url,
+      notes: "由 AI Lead Intelligence 审核批准进入 CRM。",
+    };
+    const { data: inserted, error: insertError } = await supabase
+      .from("customers")
+      .insert(customer)
+      .select("id")
+      .single();
+    if (insertError) {
+      const { data: existing } = lead.website
+        ? await supabase.from("customers").select("id").eq("website", lead.website).limit(1).maybeSingle()
+        : { data: null };
+      if (!existing) throw new Error(insertError.message);
+      customerId = existing.id;
+    } else {
+      customerId = inserted.id;
+    }
+  }
+
+  const { error } = await supabase.from("discovered_leads").update({
+    review_status: "approved",
+    customer_id: customerId,
+    reviewed_at: new Date().toISOString(),
+  }).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/lead-intelligence");
+  revalidatePath("/");
+}
+
+export async function rejectDiscoveredLead(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("discovered_leads").update({
+    review_status: "rejected",
+    reviewed_at: new Date().toISOString(),
+  }).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/lead-intelligence");
+}
