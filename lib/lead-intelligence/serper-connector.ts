@@ -83,26 +83,32 @@ export async function searchWithSerper(queries: string[]) {
   if (!apiKey) throw new Error("尚未配置 SERPER_API_KEY。");
 
   const responses: SerperOrganicResult[][] = [];
-  for (let index = 0; index < queries.length; index += 10) {
+  for (let index = 0; index < queries.length; index += 3) {
     const batch = await Promise.all(
-      queries.slice(index, index + 10).map(async (query) => {
-      const response = await fetch("https://google.serper.dev/search", {
-        method: "POST",
-        headers: {
-          "X-API-KEY": apiKey,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          q: query,
-          gl: "tr",
-          hl: "en",
-          location: "Turkey",
-          num: 10,
-        }),
-        cache: "no-store",
-        signal: AbortSignal.timeout(20_000),
-      });
+      queries.slice(index, index + 3).map(async (query) => {
+      let response: Response | undefined;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        response = await fetch("https://google.serper.dev/search", {
+          method: "POST",
+          headers: {
+            "X-API-KEY": apiKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            q: query,
+            gl: "tr",
+            hl: "en",
+            location: "Turkey",
+            num: 10,
+          }),
+          cache: "no-store",
+          signal: AbortSignal.timeout(20_000),
+        });
+        if (response.status !== 429) break;
+        await new Promise((resolve) => setTimeout(resolve, 700 * (attempt + 1)));
+      }
 
+      if (!response) throw new Error("Serper 搜索没有返回响应。");
       if (!response.ok) {
         const errorBody = await response.text();
         let detail = errorBody.trim();
