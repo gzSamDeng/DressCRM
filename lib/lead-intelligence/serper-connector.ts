@@ -82,10 +82,13 @@ export async function searchWithSerper(queries: string[]) {
   const apiKey = process.env.SERPER_API_KEY;
   if (!apiKey) throw new Error("尚未配置 SERPER_API_KEY。");
 
+  const tasks = queries.flatMap((query) =>
+    [1, 2, 3].map((page) => ({ query, page })),
+  );
   const responses: SerperOrganicResult[][] = [];
-  for (let index = 0; index < queries.length; index += 3) {
+  for (let index = 0; index < tasks.length; index += 5) {
     const batch = await Promise.all(
-      queries.slice(index, index + 3).map(async (query) => {
+      tasks.slice(index, index + 5).map(async ({ query, page }) => {
       let response: Response | undefined;
       for (let attempt = 0; attempt < 3; attempt += 1) {
         response = await fetch("https://google.serper.dev/search", {
@@ -100,6 +103,7 @@ export async function searchWithSerper(queries: string[]) {
             hl: "en",
             location: "Turkey",
             num: 10,
+            page,
           }),
           cache: "no-store",
           signal: AbortSignal.timeout(20_000),
