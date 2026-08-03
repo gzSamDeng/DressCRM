@@ -85,6 +85,7 @@ export async function addFollowUp(
   formData: FormData,
 ): Promise<FollowUpActionState> {
   const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
   const summary = String(formData.get("summary") ?? "").trim();
   if (!summary) return { ok: false, message: "请填写跟进摘要。" };
   const happenedAt = new Date(value(formData, "happened_at") ?? new Date().toISOString());
@@ -96,6 +97,7 @@ export async function addFollowUp(
     outcome: value(formData, "outcome"),
     next_action: value(formData, "next_action"),
     happened_at: happenedAt.toISOString(),
+    created_by: auth.user?.id ?? null,
   };
   const { error } = await supabase.from("follow_ups").insert(payload);
   if (error) {
@@ -122,6 +124,7 @@ export async function addFollowUp(
 
 export async function approveDiscoveredLead(id: string) {
   const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
   const { data: lead, error: leadError } = await supabase
     .from("discovered_leads")
     .select("*")
@@ -169,18 +172,23 @@ export async function approveDiscoveredLead(id: string) {
     review_status: "approved",
     customer_id: customerId,
     reviewed_at: new Date().toISOString(),
+    reviewed_by: auth.user?.id ?? null,
   }).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/lead-intelligence");
   revalidatePath("/");
+  revalidatePath("/dashboard");
 }
 
 export async function rejectDiscoveredLead(id: string) {
   const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
   const { error } = await supabase.from("discovered_leads").update({
     review_status: "rejected",
     reviewed_at: new Date().toISOString(),
+    reviewed_by: auth.user?.id ?? null,
   }).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/lead-intelligence");
+  revalidatePath("/dashboard");
 }

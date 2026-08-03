@@ -34,4 +34,5 @@ export type FollowUp = {
   next_action: string | null;
   happened_at: string;
   created_at: string;
+  created_by: string | null;
 };
