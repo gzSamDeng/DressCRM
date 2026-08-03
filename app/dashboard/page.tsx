@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { Header } from "@/components/header";
 import { SignalRefreshButton } from "@/components/signal-refresh-button";
 import { buildFollowUpRecommendations, coldCadenceDays, engagedCadenceDays, type CustomerSignal } from "@/lib/follow-up-priority";
@@ -8,12 +8,14 @@ import "./dashboard.css";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const [{ data: customers }, { data: followUps }, { data: signals }] = await Promise.all([
+  const now = new Date();
+  const weekStart = new Date(now.getTime() - 7 * 86_400_000);
+  const [{ data: customers }, { data: followUps }, { data: signals }, { data: reviewedLeads }] = await Promise.all([
     supabase.from("customers").select("*"),
     supabase.from("follow_ups").select("*").order("happened_at", { ascending: false }),
     supabase.from("customer_signals").select("*").order("created_at", { ascending: false }).limit(100),
+    supabase.from("discovered_leads").select("review_status,reviewed_at").gte("reviewed_at", weekStart.toISOString()),
   ]);
-  const now = new Date();
   const recommendations = buildFollowUpRecommendations(
     (customers ?? []) as Customer[],
     (followUps ?? []) as FollowUp[],
@@ -21,15 +23,16 @@ export default async function DashboardPage() {
     now,
   );
   const dueToday = recommendations.filter((item) => item.overdueDays >= 0);
-  const weekStart = new Date(now.getTime() - 7 * 86_400_000);
   const completedThisWeek = (followUps ?? []).filter((item) => new Date(item.happened_at) >= weekStart).length;
   const repliedThisWeek = (followUps ?? []).filter((item) => new Date(item.happened_at) >= weekStart && ["已回复", "有兴趣", "要求报价", "要求样品", "采购计划明确"].includes(item.outcome ?? "")).length;
   const activeSignals = (signals ?? []).filter((item) => new Date(item.created_at) >= new Date(now.getTime() - 30 * 86_400_000)).length;
+  const reviewedThisWeek = reviewedLeads?.length ?? 0;
+  const approvedThisWeek = reviewedLeads?.filter((item) => item.review_status === "approved").length ?? 0;
 
   return <div className="shell"><Header/><main className="container dashboardPage">
     <div className="pageHeader"><div><span className="pageKicker">SALES WORKSPACE</span><h2>今日任务与效果看板</h2><p>先处理有回复、已逾期和出现最新商业机会的高价值客户。</p></div><SignalRefreshButton/></div>
     <section className="cards">
-      {[["今天及逾期",dueToday.length],["本周已跟进",completedThisWeek],["本周有效回复",repliedThisWeek],["近30天商业信号",activeSignals]].map(([label,value])=><div className="card metricCard" key={label}><div className="muted">{label}</div><div className="metric">{value}</div></div>)}
+      {[["今天及逾期",dueToday.length],["本周审核通过",`${approvedThisWeek}/${reviewedThisWeek}`],["本周已跟进",completedThisWeek],["本周有效回复",repliedThisWeek],["近30天商业信号",activeSignals]].map(([label,value])=><div className="card metricCard" key={label}><div className="muted">{label}</div><div className="metric">{value}</div></div>)}
     </section>
     <div className="dashboardGrid">
       <section className="card priorityPanel"><div className="panelHeading"><div><h3>优先跟进客户</h3><p>综合客户等级、到期情况、回复历史和商业信号排序。</p></div><span>{dueToday.length} 项待处理</span></div>
@@ -42,3 +45,4 @@ export default async function DashboardPage() {
     </div>
   </main></div>;
 }
+

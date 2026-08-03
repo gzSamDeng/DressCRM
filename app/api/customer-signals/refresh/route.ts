@@ -33,7 +33,12 @@ export async function POST() {
 
   let signalsSaved = 0;
   for (const customer of customers ?? []) {
-    const domain = customer.website ? new URL(customer.website).hostname.replace(/^www\./, "") : "";
+    let domain = "";
+    try {
+      domain = customer.website ? new URL(customer.website).hostname.replace(/^www\./, "") : "";
+    } catch {
+      domain = customer.website?.replace(/^https?:\/\//, "").split("/")[0] ?? "";
+    }
     const response = await fetch("https://google.serper.dev/news", {
       method: "POST",
       headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
