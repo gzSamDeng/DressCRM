@@ -6,6 +6,7 @@ import { logout } from "@/app/actions";
 
 export function Header() {
   const pathname = usePathname();
+  const isDashboard = pathname.startsWith("/dashboard");
   const isLeadIntelligence = pathname.startsWith("/lead-intelligence");
   const isCustomerLeads = pathname === "/" || pathname.startsWith("/customers");
 
@@ -16,6 +17,7 @@ export function Header() {
         <small>AI Lead Intelligence & Customer Management</small>
       </Link>
       <nav className="nav">
+        <Link className={isDashboard ? "active" : ""} aria-current={isDashboard ? "page" : undefined} href="/dashboard">今日工作台</Link>
         <Link className={isLeadIntelligence ? "active" : ""} aria-current={isLeadIntelligence ? "page" : undefined} href="/lead-intelligence">AI 自动获客</Link>
         <Link className={isCustomerLeads ? "active" : ""} aria-current={isCustomerLeads ? "page" : undefined} href="/">客户线索</Link>
         <form action={logout}><button type="submit">退出登录</button></form>
