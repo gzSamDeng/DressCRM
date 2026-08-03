@@ -29,6 +29,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const requestedPage = Math.max(1, Number(params.taskPage ?? 1) || 1);
   const pageSize = 20;
   const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
   const now = new Date();
   const todayStart = chinaDayStart(now);
   const tomorrowStart = new Date(todayStart.getTime() + 86_400_000);
@@ -65,8 +66,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const weekReplies = weekFollowUps.filter((item) => replyOutcomes.includes(item.outcome ?? ""));
   const activeSignals = (signals ?? []).filter((item) => new Date(item.created_at) >= new Date(now.getTime() - 30 * 86_400_000)).length;
   const customerNames = new Map(allCustomers.map((customer) => [customer.id, customer.company]));
-  const profileNames = new Map(allProfiles.map((profile) => [profile.id, profile.display_name || profile.email || `用户 ${profile.id.slice(0, 8)}`]));
-  const actorName = (id: string | null) => id ? profileNames.get(id) ?? `用户 ${id.slice(0, 8)}` : "历史数据（未记录人员）";
+  const profileNames = new Map(allProfiles.map((profile) => [profile.id, profile.email || profile.display_name || `用户 ${profile.id.slice(0, 8)}`]));
+  const actorName = (id: string | null) => id ? profileNames.get(id) ?? `用户 ${id.slice(0, 8)}` : auth.user?.email ?? "历史数据（未记录人员）";
   const actorIds = Array.from(new Set([...todayFollowUps.map((item) => item.created_by), ...todayReviewed.map((item) => item.reviewed_by)]));
   const dailyByUser = actorIds.map((actorId) => ({
     id: actorId ?? "unknown",
