@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { coldCadenceDays, engagedCadenceDays } from "@/lib/follow-up-priority";
 
 function value(formData: FormData, key: string) {
   const v = formData.get(key);
@@ -101,7 +102,21 @@ export async function addFollowUp(
     console.error("Failed to save follow-up", { code: error.code, message: error.message, customerId });
     return { ok: false, message: `保存失败：${error.message}` };
   }
+  const outcome = payload.outcome ?? "无回复";
+  const stopped = ["明确拒绝", "退订", "联系方式无效"].includes(outcome);
+  const replied = ["已回复", "有兴趣", "要求报价", "要求样品", "采购计划明确"].includes(outcome);
+  const manualNext = value(formData, "next_follow_up_at");
+  const { data: customer } = await supabase.from("customers").select("priority").eq("id", customerId).single();
+  const cadence = (replied ? engagedCadenceDays : coldCadenceDays)[customer?.priority ?? "B"] ?? 30;
+  const automaticNext = new Date(happenedAt.getTime() + cadence * 86_400_000).toISOString();
+  const customerUpdate: { next_follow_up_at: string | null; stage?: string } = {
+    next_follow_up_at: stopped ? null : manualNext ? new Date(`${manualNext}T09:00:00`).toISOString() : automaticNext,
+  };
+  if (stopped) customerUpdate.stage = outcome;
+  else if (replied) customerUpdate.stage = "Engaged";
+  await supabase.from("customers").update(customerUpdate).eq("id", customerId);
   revalidatePath(`/customers/${customerId}`);
+  revalidatePath("/dashboard");
   return { ok: true, message: "跟进记录已保存。" };
 }
 
