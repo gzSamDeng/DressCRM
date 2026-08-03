@@ -49,9 +49,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const allProfiles = (profiles ?? []) as Profile[];
   const recommendations = buildFollowUpRecommendations(allCustomers, allFollowUps, (signals ?? []) as CustomerSignal[], now);
   const dueTasks = recommendations.filter((item) => item.overdueDays >= 0);
-  const taskPages = Math.max(1, Math.ceil(dueTasks.length / pageSize));
+  const taskPages = Math.max(1, Math.ceil(recommendations.length / pageSize));
   const taskPage = Math.min(requestedPage, taskPages);
-  const pageTasks = dueTasks.slice((taskPage - 1) * pageSize, taskPage * pageSize);
+  const pageTasks = recommendations.slice((taskPage - 1) * pageSize, taskPage * pageSize);
 
   const isToday = (value: string) => { const time = new Date(value).getTime(); return time >= todayStart.getTime() && time < tomorrowStart.getTime(); };
   const isThisWeek = (value: string) => new Date(value).getTime() >= weekStart.getTime();
@@ -93,13 +93,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     </section>
 
     <div className="dashboardGrid">
-      <section className="card priorityPanel"><div className="panelHeading"><div><h3>优先跟进客户</h3><p>综合客户等级、到期情况、回复历史和商业信号排序；每页 {pageSize} 条。</p></div><span>{dueTasks.length} 项待处理</span></div>
-        <div className="taskList">{pageTasks.map((item, index) => <article className="taskItem due" key={item.customer.id}>
+      <section className="card priorityPanel"><div className="panelHeading"><div><h3>优先跟进客户</h3><p>显示全部有效客户，综合等级、到期情况、回复历史和商业信号排序；每页 {pageSize} 条。</p></div><span>{recommendations.length} 位客户</span></div>
+        <div className="taskList">{pageTasks.map((item, index) => <article className={item.overdueDays >= 0 ? "taskItem due" : "taskItem"} key={item.customer.id}>
           <span className="taskRank">{(taskPage - 1) * pageSize + index + 1}</span>
           <div className="taskMain"><div><strong>{item.customer.company}</strong><span className={`badge ${item.customer.priority === "A+" ? "ap" : ""}`}>{item.customer.priority}</span>{item.hasReplied && <span className="replyBadge">曾回复</span>}</div><p>{item.reason}</p>{item.latestSignal && <a href={item.latestSignal.source_url} target="_blank" rel="noreferrer">查看机会信号：{item.latestSignal.title}</a>}</div>
           <div className="taskMeta"><strong>{item.score} 分</strong><span>应跟进：{item.dueAt.toLocaleDateString("zh-CN")}</span><Link href={`/customers/${item.customer.id}`}>查看并跟进</Link></div>
-        </article>)}{!pageTasks.length && <p className="emptyState">今天没有到期的跟进任务。</p>}</div>
-        <div className="taskPagination"><Link aria-disabled={taskPage <= 1} href={`/dashboard?taskPage=${Math.max(1, taskPage - 1)}`}>上一页</Link><span>第 {taskPage} / {taskPages} 页 · 共 {dueTasks.length} 条</span><Link aria-disabled={taskPage >= taskPages} href={`/dashboard?taskPage=${Math.min(taskPages, taskPage + 1)}`}>下一页</Link></div>
+        </article>)}{!pageTasks.length && <p className="emptyState">目前没有可跟进的客户。</p>}</div>
+        <div className="taskPagination"><Link aria-disabled={taskPage <= 1} href={`/dashboard?taskPage=${Math.max(1, taskPage - 1)}`}>上一页</Link><span>第 {taskPage} / {taskPages} 页 · 共 {recommendations.length} 条</span><Link aria-disabled={taskPage >= taskPages} href={`/dashboard?taskPage=${Math.min(taskPages, taskPage + 1)}`}>下一页</Link></div>
       </section>
       <aside className="card cadencePanel"><h3>当前跟进频率</h3><p>无回复客户保持低频，客户回复后自动提高频率。</p><table><thead><tr><th>等级</th><th>未回复</th><th>曾回复</th></tr></thead><tbody>{["A+","A","B","C","D"].map((grade) => <tr key={grade}><td><strong>{grade}</strong></td><td>{coldCadenceDays[grade]} 天</td><td>{engagedCadenceDays[grade]} 天</td></tr>)}</tbody></table><small>人工设置的“下次跟进日期”始终优先；明确拒绝、退订或联系方式无效的客户不会进入任务列表。</small></aside>
     </div>
