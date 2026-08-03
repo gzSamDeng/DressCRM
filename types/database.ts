@@ -36,3 +36,16 @@ export type FollowUp = {
   created_at: string;
   created_by: string | null;
 };
+
+export type EmailAccount = {
+  id: string;
+  user_id: string;
+  provider: "google";
+  email: string;
+  access_token: string;
+  refresh_token: string | null;
+  expires_at: string | null;
+  scopes: string | null;
+  created_at: string;
+  updated_at: string;
+};
