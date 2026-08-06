@@ -22,7 +22,7 @@ export default function ImportExhibitorsPage() {
     setRunning(true);
     setMessage("正在搜索并评分，请保持此页面打开……");
     try {
-      let offset = 0;
+      let offset = progress >= total ? 0 : progress;
       while (offset < total) {
         let payload: ImportResult | null = null;
         let lastError: Error | null = null;
