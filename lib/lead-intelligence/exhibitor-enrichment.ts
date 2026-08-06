@@ -23,6 +23,10 @@ export type EnrichedExhibitor = ScoredLead & {
 const emailPattern = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const phonePattern = /(?:\+?\d[\d\s()./-]{7,}\d)/g;
 const socialHosts = ["instagram.com", "facebook.com", "linkedin.com", "tiktok.com", "youtube.com"];
+const rejectedHosts = [
+  ".edu", ".gov", "wikipedia.org", "reddit.com", "pinterest.com", "ebay.",
+  "amazon.", "etsy.com", "yandex.", "tripadvisor.",
+];
 const genericCompanyWords = new Set([
   "fashion", "couture", "moda", "abiye", "dress", "dresses", "collection",
   "exclusive", "textile", "tekstil", "bridal", "giyim", "group", "grup",
@@ -41,12 +45,17 @@ function relevantToCompany(seed: ExhibitorSeed, hostname: string, result: Organi
   if (hostname && (host === hostname || host.endsWith(`.${hostname}`))) return true;
   const haystack = normalizeSearchText(`${result.title ?? ""} ${result.link ?? ""} ${result.snippet ?? ""}`);
   const exactName = normalizeSearchText(seed.company);
-  return exactName.length >= 4 && haystack.includes(exactName);
+  return exactName.length >= 4 && ` ${haystack} `.includes(` ${exactName} `);
 }
 
 function officialHostMatchesCompany(seed: ExhibitorSeed, result: OrganicResult) {
-  const host = normalizeSearchText(resultHost(result)).replace(/\s+/g, "");
+  const rawHost = resultHost(result);
+  if (rejectedHosts.some((value) => rawHost.includes(value))) return false;
+  const host = normalizeSearchText(rawHost).replace(/\s+/g, "");
   if (!host || socialHosts.some((social) => host.includes(social.replace(/\W/g, "")))) return false;
+  const companyWords = normalizeSearchText(seed.company).split(" ").filter(Boolean);
+  const firstLabel = normalizeSearchText(rawHost.split(".")[0]).replace(/\s+/g, "");
+  if (companyWords.length === 1) return firstLabel === companyWords[0];
   const tokens = normalizeSearchText(seed.company).split(" ")
     .filter((token) => token.length >= 4 && !genericCompanyWords.has(token));
   return tokens.length ? tokens.some((token) => host.includes(token)) : host.includes(normalizeSearchText(seed.company).replace(/\s+/g, ""));
