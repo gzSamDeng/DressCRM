@@ -22,6 +22,29 @@ export type EnrichedExhibitor = ScoredLead & {
 const emailPattern = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const phonePattern = /(?:\+?\d[\d\s()./-]{7,}\d)/g;
 const socialHosts = ["instagram.com", "facebook.com", "linkedin.com", "tiktok.com", "youtube.com"];
+const genericCompanyWords = new Set([
+  "fashion", "couture", "moda", "abiye", "dress", "dresses", "collection",
+  "exclusive", "textile", "tekstil", "bridal", "giyim", "group", "grup",
+]);
+
+function normalizeSearchText(value: string) {
+  return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function resultHost(result: OrganicResult) {
+  try { return new URL(result.link ?? "").hostname.toLowerCase().replace(/^www\./, ""); } catch { return ""; }
+}
+
+function relevantToCompany(seed: ExhibitorSeed, hostname: string, result: OrganicResult) {
+  const host = resultHost(result);
+  if (hostname && (host === hostname || host.endsWith(`.${hostname}`))) return true;
+  const haystack = normalizeSearchText(`${result.title ?? ""} ${result.link ?? ""} ${result.snippet ?? ""}`);
+  const tokens = normalizeSearchText(seed.company).split(" ")
+    .filter((token) => token.length >= 4 && !genericCompanyWords.has(token));
+  if (tokens.length) return tokens.some((token) => haystack.includes(token));
+  const exactName = normalizeSearchText(seed.company);
+  return exactName.length >= 5 && haystack.includes(exactName);
+}
 
 function cleanWebsite(value?: string) {
   if (!value || value === "http://" || value === "https://") return "";
@@ -42,6 +65,7 @@ function normalizePhone(value: string) {
   const compact = value.replace(/\s+/g, " ").trim().replace(/^[.\-/]+|[.\-/]+$/g, "");
   const digits = compact.replace(/\D/g, "");
   if (digits.length < 9 || digits.length > 15) return "";
+  if (digits.length === 13 && /^(978|979)/.test(digits)) return "";
   if (/^(19|20)\d{6,}$/.test(digits)) return "";
   return compact;
 }
@@ -78,17 +102,18 @@ export async function enrichExhibitor(seed: ExhibitorSeed): Promise<EnrichedExhi
   ];
   const batches = await Promise.all(queries.map((query) => serperSearch(query)));
   const results = batches.flat();
-  const sourceUrls = unique(results.map((result) => result.link)).slice(0, 12);
-  const combined = results.map((result) => `${result.title ?? ""} ${result.snippet ?? ""}`).join("\n");
+  const relevantResults = results.filter((result) => relevantToCompany(seed, hostname, result));
+  const sourceUrls = unique(relevantResults.map((result) => result.link)).slice(0, 12);
+  const combined = relevantResults.map((result) => `${result.title ?? ""} ${result.snippet ?? ""}`).join("\n");
   const emails = unique(combined.match(emailPattern) ?? []).filter((email) => !email.endsWith("@example.com"));
   const phones = unique((combined.match(phonePattern) ?? []).map(normalizePhone)).filter(Boolean);
-  const instagram = socialUrl(results, "instagram.com");
-  const facebook = socialUrl(results, "facebook.com");
-  const linkedin = socialUrl(results, "linkedin.com");
-  const whatsappLink = results.find((result) => /wa\.me|whatsapp/i.test(`${result.link} ${result.title} ${result.snippet}`));
+  const instagram = socialUrl(relevantResults, "instagram.com");
+  const facebook = socialUrl(relevantResults, "facebook.com");
+  const linkedin = socialUrl(relevantResults, "linkedin.com");
+  const whatsappLink = relevantResults.find((result) => /wa\.me|whatsapp/i.test(`${result.link} ${result.title} ${result.snippet}`));
   const whatsappText = `${whatsappLink?.title ?? ""} ${whatsappLink?.snippet ?? ""}`;
   const whatsapp = unique((whatsappText.match(phonePattern) ?? []).map(normalizePhone)).filter(Boolean)[0] ?? "";
-  const officialResult = results.find((result) => {
+  const officialResult = relevantResults.find((result) => {
     try {
       const host = new URL(result.link ?? "").hostname.replace(/^www\./, "");
       return hostname ? host === hostname || host.endsWith(`.${hostname}`) : !socialHosts.some((social) => host.includes(social));
@@ -103,7 +128,7 @@ export async function enrichExhibitor(seed: ExhibitorSeed): Promise<EnrichedExhi
   if (/international|global|export countries|ihracat|worldwide/i.test(combined)) signals.push("international_brands");
   if (/showroom|store|stores|mağaza|boutique|locations/i.test(combined)) signals.push("physical_stores");
   if (instagram || facebook || linkedin) signals.push("active_social");
-  const evidence = unique(results.slice(0, 8).map((result) => [result.title, result.snippet].filter(Boolean).join(" — "))).slice(0, 8);
+  const evidence = unique(relevantResults.slice(0, 8).map((result) => [result.title, result.snippet].filter(Boolean).join(" — "))).slice(0, 8);
   const candidate = scoreLead({
     id: `if-wedding-2026:${seed.company.toLocaleLowerCase("tr-TR").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "")}`,
     company: seed.company,
