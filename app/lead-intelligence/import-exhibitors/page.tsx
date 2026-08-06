@@ -24,16 +24,31 @@ export default function ImportExhibitorsPage() {
     try {
       let offset = 0;
       while (offset < total) {
-        const response = await fetch("/api/lead-intelligence/import-exhibitors", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ offset, limit: 4 }),
-        });
-        const payload = (await response.json()) as ImportResult;
-        if (!response.ok || payload.error) throw new Error(payload.error ?? "导入失败。");
+        let payload: ImportResult | null = null;
+        let lastError: Error | null = null;
+        for (let attempt = 1; attempt <= 4; attempt += 1) {
+          try {
+            const response = await fetch("/api/lead-intelligence/import-exhibitors", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ offset, limit: 4 }),
+            });
+            const raw = await response.text();
+            if (!raw) throw new Error("服务器返回为空，请稍后重试。");
+            payload = JSON.parse(raw) as ImportResult;
+            if (!response.ok || payload.error) throw new Error(payload.error ?? "导入失败。");
+            break;
+          } catch (error) {
+            lastError = error instanceof Error ? error : new Error("导入失败。");
+            payload = null;
+            if (attempt < 4) await new Promise((resolve) => setTimeout(resolve, attempt * 800));
+          }
+        }
+        if (!payload) throw lastError ?? new Error("导入失败。");
         offset = payload.nextOffset ?? total;
-        setProgress(payload.imported ?? offset);
+        setProgress(offset);
         setTotal(payload.total ?? total);
+        setMessage(`正在核实 ${offset} / ${payload.total ?? total}；数据库现有 ${payload.imported ?? offset} 条该展会线索。`);
         if (payload.complete) break;
       }
       setMessage("导入完成。全部线索已按 AI Score 排序进入待审核列表。");
@@ -60,4 +75,3 @@ export default function ImportExhibitorsPage() {
     </div>
   </main>;
 }
-
