@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 
 type ImportResult = {
@@ -12,17 +12,28 @@ type ImportResult = {
   complete?: boolean;
 };
 
+const subscribeToSearchOffset = () => () => undefined;
+const getSearchOffset = () => {
+  const offset = Number(new URLSearchParams(window.location.search).get("offset") ?? 0);
+  return Number.isFinite(offset) && offset > 0 && offset < 119 ? Math.floor(offset) : 0;
+};
+
 export default function ImportExhibitorsPage() {
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [total, setTotal] = useState(119);
   const [message, setMessage] = useState("准备导入 IF Wedding Fashion İzmir 2026 B 馆展商。重点核实公开官网、邮箱、电话、WhatsApp 和社媒账号。");
+  const requestedOffset = useSyncExternalStore(subscribeToSearchOffset, getSearchOffset, () => 0);
+  const currentProgress = progress || requestedOffset;
+  const displayMessage = !running && !progress && requestedOffset
+    ? `已恢复到第 ${requestedOffset} 家，点击继续即可处理剩余展商。`
+    : message;
 
   async function startImport() {
     setRunning(true);
     setMessage("正在搜索并评分，请保持此页面打开……");
     try {
-      let offset = progress >= total ? 0 : progress;
+      let offset = currentProgress >= total ? 0 : currentProgress;
       while (offset < total) {
         let payload: ImportResult | null = null;
         let lastError: Error | null = null;
@@ -62,14 +73,14 @@ export default function ImportExhibitorsPage() {
   return <main style={{maxWidth:760,margin:"60px auto",padding:24,fontFamily:"Arial,sans-serif"}}>
     <p style={{color:"#82745f",fontWeight:700}}>EXHIBITOR LEAD IMPORT</p>
     <h1 style={{fontFamily:"Georgia,serif",fontSize:42}}>展会线索批量导入</h1>
-    <p style={{lineHeight:1.7,color:"#56615d"}}>{message}</p>
+    <p style={{lineHeight:1.7,color:"#56615d"}}>{displayMessage}</p>
     <div style={{height:12,background:"#e8e2d8",borderRadius:99,overflow:"hidden",margin:"28px 0 10px"}}>
-      <div style={{height:"100%",width:`${Math.min(100,(progress/Math.max(1,total))*100)}%`,background:"#1e6a52",transition:"width .3s"}} />
+      <div style={{height:"100%",width:`${Math.min(100,(currentProgress/Math.max(1,total))*100)}%`,background:"#1e6a52",transition:"width .3s"}} />
     </div>
-    <strong>{progress} / {total}</strong>
+    <strong>{currentProgress} / {total}</strong>
     <div style={{display:"flex",gap:12,marginTop:28}}>
       <button onClick={startImport} disabled={running} style={{border:0,borderRadius:10,padding:"13px 22px",background:"#17382c",color:"white",fontWeight:700,cursor:"pointer"}}>
-        {running ? "正在导入……" : progress ? "继续/重新核实" : "开始导入 119 家展商"}
+        {running ? "正在导入……" : currentProgress ? "继续/重新核实" : "开始导入 119 家展商"}
       </button>
       <Link href="/lead-intelligence?reviewStatus=pending#review-center" style={{border:"1px solid #cfc8bc",borderRadius:10,padding:"13px 22px"}}>查看待审核列表</Link>
     </div>
