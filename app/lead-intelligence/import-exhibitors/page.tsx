@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
@@ -30,6 +31,7 @@ export default function ImportExhibitorsPage() {
     : message;
 
   async function startImport() {
+    if (!progress && requestedOffset) setProgress(requestedOffset);
     setRunning(true);
     setMessage("正在搜索并评分，请保持此页面打开……");
     try {
@@ -42,7 +44,7 @@ export default function ImportExhibitorsPage() {
             const response = await fetch("/api/lead-intelligence/import-exhibitors", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ offset, limit: 4 }),
+              body: JSON.stringify({ offset, limit: 1 }),
             });
             const raw = await response.text();
             if (!raw) throw new Error("服务器返回为空，请稍后重试。");
@@ -86,3 +88,4 @@ export default function ImportExhibitorsPage() {
     </div>
   </main>;
 }
+
