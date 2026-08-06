@@ -22,6 +22,34 @@ export type EnrichedExhibitor = ScoredLead & {
 const emailPattern = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const phonePattern = /(?:\+?\d[\d\s()./-]{7,}\d)/g;
 const socialHosts = ["instagram.com", "facebook.com", "linkedin.com", "tiktok.com", "youtube.com"];
+const genericCompanyWords = new Set([
+  "fashion", "couture", "moda", "abiye", "dress", "dresses", "collection",
+  "exclusive", "textile", "tekstil", "bridal", "giyim", "group", "grup",
+]);
+
+function normalizeSearchText(value: string) {
+  return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function resultHost(result: OrganicResult) {
+  try { return new URL(result.link ?? "").hostname.toLowerCase().replace(/^www\./, ""); } catch { return ""; }
+}
+
+function relevantToCompany(seed: ExhibitorSeed, hostname: string, result: OrganicResult) {
+  const host = resultHost(result);
+  if (hostname && (host === hostname || host.endsWith(`.${hostname}`))) return true;
+  const haystack = normalizeSearchText(`${result.title ?? ""} ${result.link ?? ""} ${result.snippet ?? ""}`);
+  const exactName = normalizeSearchText(seed.company);
+  return exactName.length >= 4 && haystack.includes(exactName);
+}
+
+function officialHostMatchesCompany(seed: ExhibitorSeed, result: OrganicResult) {
+  const host = normalizeSearchText(resultHost(result)).replace(/\s+/g, "");
+  if (!host || socialHosts.some((social) => host.includes(social.replace(/\W/g, "")))) return false;
+  const tokens = normalizeSearchText(seed.company).split(" ")
+    .filter((token) => token.length >= 4 && !genericCompanyWords.has(token));
+  return tokens.length ? tokens.some((token) => host.includes(token)) : host.includes(normalizeSearchText(seed.company).replace(/\s+/g, ""));
+}
 
 function cleanWebsite(value?: string) {
   if (!value || value === "http://" || value === "https://") return "";
@@ -42,6 +70,7 @@ function normalizePhone(value: string) {
   const compact = value.replace(/\s+/g, " ").trim().replace(/^[.\-/]+|[.\-/]+$/g, "");
   const digits = compact.replace(/\D/g, "");
   if (digits.length < 9 || digits.length > 15) return "";
+  if (digits.length === 13 && /^(978|979)/.test(digits)) return "";
   if (/^(19|20)\d{6,}$/.test(digits)) return "";
   return compact;
 }
@@ -68,6 +97,17 @@ async function serperSearch(query: string): Promise<OrganicResult[]> {
   return payload.organic ?? [];
 }
 
+async function safeSerperSearch(query: string): Promise<OrganicResult[]> {
+  try {
+    return await Promise.race([
+      serperSearch(query),
+      new Promise<OrganicResult[]>((resolve) => setTimeout(() => resolve([]), 12_000)),
+    ]);
+  } catch {
+    return [];
+  }
+}
+
 export async function enrichExhibitor(seed: ExhibitorSeed): Promise<EnrichedExhibitor> {
   const website = cleanWebsite(seed.website);
   const hostname = website ? new URL(website).hostname.replace(/^www\./, "") : "";
@@ -76,22 +116,23 @@ export async function enrichExhibitor(seed: ExhibitorSeed): Promise<EnrichedExhi
     `"${seed.company}" "Firma Yetkilisi" "Ürün Grupları"`,
     hostname ? `site:${hostname} (contact OR iletişim OR email OR phone OR WhatsApp)` : `"${seed.company}" Turkey official website`,
   ];
-  const batches = await Promise.all(queries.map((query) => serperSearch(query)));
+  const batches = await Promise.all(queries.map((query) => safeSerperSearch(query)));
   const results = batches.flat();
-  const sourceUrls = unique(results.map((result) => result.link)).slice(0, 12);
-  const combined = results.map((result) => `${result.title ?? ""} ${result.snippet ?? ""}`).join("\n");
+  const relevantResults = results.filter((result) => relevantToCompany(seed, hostname, result));
+  const sourceUrls = unique(relevantResults.map((result) => result.link)).slice(0, 12);
+  const combined = relevantResults.map((result) => `${result.title ?? ""} ${result.snippet ?? ""}`).join("\n");
   const emails = unique(combined.match(emailPattern) ?? []).filter((email) => !email.endsWith("@example.com"));
   const phones = unique((combined.match(phonePattern) ?? []).map(normalizePhone)).filter(Boolean);
-  const instagram = socialUrl(results, "instagram.com");
-  const facebook = socialUrl(results, "facebook.com");
-  const linkedin = socialUrl(results, "linkedin.com");
-  const whatsappLink = results.find((result) => /wa\.me|whatsapp/i.test(`${result.link} ${result.title} ${result.snippet}`));
+  const instagram = socialUrl(relevantResults, "instagram.com");
+  const facebook = socialUrl(relevantResults, "facebook.com");
+  const linkedin = socialUrl(relevantResults, "linkedin.com");
+  const whatsappLink = relevantResults.find((result) => /wa\.me|whatsapp/i.test(`${result.link} ${result.title} ${result.snippet}`));
   const whatsappText = `${whatsappLink?.title ?? ""} ${whatsappLink?.snippet ?? ""}`;
   const whatsapp = unique((whatsappText.match(phonePattern) ?? []).map(normalizePhone)).filter(Boolean)[0] ?? "";
-  const officialResult = results.find((result) => {
+  const officialResult = relevantResults.find((result) => {
     try {
       const host = new URL(result.link ?? "").hostname.replace(/^www\./, "");
-      return hostname ? host === hostname || host.endsWith(`.${hostname}`) : !socialHosts.some((social) => host.includes(social));
+      return hostname ? host === hostname || host.endsWith(`.${hostname}`) : officialHostMatchesCompany(seed, result);
     } catch { return false; }
   });
   const resolvedWebsite = website || (officialResult?.link ? cleanWebsite(officialResult.link) : "");
@@ -103,7 +144,7 @@ export async function enrichExhibitor(seed: ExhibitorSeed): Promise<EnrichedExhi
   if (/international|global|export countries|ihracat|worldwide/i.test(combined)) signals.push("international_brands");
   if (/showroom|store|stores|mağaza|boutique|locations/i.test(combined)) signals.push("physical_stores");
   if (instagram || facebook || linkedin) signals.push("active_social");
-  const evidence = unique(results.slice(0, 8).map((result) => [result.title, result.snippet].filter(Boolean).join(" — "))).slice(0, 8);
+  const evidence = unique(relevantResults.slice(0, 8).map((result) => [result.title, result.snippet].filter(Boolean).join(" — "))).slice(0, 8);
   const candidate = scoreLead({
     id: `if-wedding-2026:${seed.company.toLocaleLowerCase("tr-TR").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "")}`,
     company: seed.company,
@@ -118,11 +159,20 @@ export async function enrichExhibitor(seed: ExhibitorSeed): Promise<EnrichedExhi
   });
   const contactEmail = emails[0] ?? "";
   const contactPhone = phones[0] ?? "";
+  const contactEvidence = [
+    contactEmail ? `公开邮箱：${contactEmail}` : "",
+    contactPhone ? `公开电话：${contactPhone}` : "",
+    whatsapp ? `WhatsApp：${whatsapp}` : "",
+    instagram ? `Instagram：${instagram}` : "",
+    facebook ? `Facebook：${facebook}` : "",
+    linkedin ? `LinkedIn：${linkedin}` : "",
+  ].filter(Boolean);
   const completeness = Math.min(100,
     (resolvedWebsite ? 20 : 0) + (contactEmail ? 30 : 0) + (contactPhone ? 25 : 0) +
     (whatsapp ? 10 : 0) + (instagram ? 10 : 0) + (sourceUrls.length >= 3 ? 5 : 0));
   return {
     ...candidate,
+    evidence: [candidate.evidence[0], ...contactEvidence, ...candidate.evidence.slice(1)],
     contactName: "",
     contactEmail,
     contactPhone,
@@ -135,4 +185,3 @@ export async function enrichExhibitor(seed: ExhibitorSeed): Promise<EnrichedExhi
     dataCompleteness: completeness,
   };
 }
-
