@@ -1,3 +1,4 @@
+
 import { scoreLead } from "./score";
 import type { BuyerSignal, ScoredLead } from "./types";
 
@@ -97,6 +98,17 @@ async function serperSearch(query: string): Promise<OrganicResult[]> {
   return payload.organic ?? [];
 }
 
+async function safeSerperSearch(query: string): Promise<OrganicResult[]> {
+  try {
+    return await Promise.race([
+      serperSearch(query),
+      new Promise<OrganicResult[]>((resolve) => setTimeout(() => resolve([]), 12_000)),
+    ]);
+  } catch {
+    return [];
+  }
+}
+
 export async function enrichExhibitor(seed: ExhibitorSeed): Promise<EnrichedExhibitor> {
   const website = cleanWebsite(seed.website);
   const hostname = website ? new URL(website).hostname.replace(/^www\./, "") : "";
@@ -105,7 +117,7 @@ export async function enrichExhibitor(seed: ExhibitorSeed): Promise<EnrichedExhi
     `"${seed.company}" "Firma Yetkilisi" "Ürün Grupları"`,
     hostname ? `site:${hostname} (contact OR iletişim OR email OR phone OR WhatsApp)` : `"${seed.company}" Turkey official website`,
   ];
-  const batches = await Promise.all(queries.map((query) => serperSearch(query)));
+  const batches = await Promise.all(queries.map((query) => safeSerperSearch(query)));
   const results = batches.flat();
   const relevantResults = results.filter((result) => relevantToCompany(seed, hostname, result));
   const sourceUrls = unique(relevantResults.map((result) => result.link)).slice(0, 12);
@@ -174,3 +186,4 @@ export async function enrichExhibitor(seed: ExhibitorSeed): Promise<EnrichedExhi
     dataCompleteness: completeness,
   };
 }
+
