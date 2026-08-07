@@ -43,9 +43,11 @@ export default async function FollowUpPage({
     linkedin: "LinkedIn",
   };
   const selectedChannel = channelNames[requestedChannel];
-  const channel: "overview" | ManualChannel = selectedChannel && isManualChannel(selectedChannel)
-    ? selectedChannel
-    : "overview";
+  const channel: "overview" | "WhatsAppBusiness" | ManualChannel = requestedChannel === "whatsapp-business"
+    ? "WhatsAppBusiness"
+    : selectedChannel && isManualChannel(selectedChannel)
+      ? selectedChannel
+      : "overview";
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect("/login");
@@ -128,7 +130,7 @@ export default async function FollowUpPage({
       <div><span className="pageKicker">CUSTOMER FOLLOW-UP</span><h2>客户跟进</h2><p>在一个工作区完成多渠道沟通、人工留痕和下一次任务安排。</p></div>
       <Link className="secondaryButton" href="/dashboard">查看今日优先任务</Link>
     </div>
-    <FollowUpTabs active={channel === "overview" ? "overview" : channel.toLowerCase()}/>
+    <FollowUpTabs active={channel === "overview" ? "overview" : channel === "WhatsAppBusiness" ? "whatsapp-business" : channel.toLowerCase()}/>
 
     {channel === "overview" ? <>
       <section className="followUpMetrics">
@@ -157,7 +159,7 @@ export default async function FollowUpPage({
           })}{!followUps.length && <p className="followUpEmpty">还没有跟进记录。</p>}</div>
         </section>
       </div>
-    </> : channel === "WhatsApp" ? <WhatsAppWorkspace
+    </> : channel === "WhatsAppBusiness" ? <WhatsAppWorkspace
       customers={options}
       messages={whatsappMessages}
       configured={whatsappConfigured()}
