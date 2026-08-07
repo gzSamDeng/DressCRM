@@ -3,6 +3,8 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+const DEFAULT_CC = "liqingyan777@gmail.com, samteng188@gmail.com";
+
 export type EmailCustomerOption = {
   id: string;
   company: string;
@@ -15,7 +17,7 @@ export function EmailComposer({ customers }: { customers: EmailCustomerOption[] 
   const router = useRouter();
   const [customerId, setCustomerId] = useState(customers[0]?.id || "");
   const [to, setTo] = useState(customers[0]?.contact_email || "");
-  const [cc, setCc] = useState("");
+  const [cc, setCc] = useState(DEFAULT_CC);
   const [purpose, setPurpose] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -80,7 +82,7 @@ export function EmailComposer({ customers }: { customers: EmailCustomerOption[] 
       setPurpose("");
       form.reset();
       setTo(customer?.contact_email || "");
-      setCc("");
+      setCc(DEFAULT_CC);
       router.refresh();
     } catch (error) {
       setStatus({ ok: false, message: error instanceof Error ? error.message : "邮件发送失败。" });
