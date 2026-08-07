@@ -23,13 +23,23 @@ export type GmailMessageSummary = {
   date: string;
 };
 
+export type GmailMessageContext = GmailMessageSummary & {
+  content: string;
+};
+
 type GmailListResponse = { messages?: Array<{ id: string; threadId: string }> };
+type GmailMessagePart = {
+  mimeType?: string;
+  body?: { data?: string };
+  parts?: GmailMessagePart[];
+  headers?: Array<{ name: string; value: string }>;
+};
 type GmailMessageResponse = {
   id: string;
   threadId: string;
   internalDate?: string;
   snippet?: string;
-  payload?: { headers?: Array<{ name: string; value: string }> };
+  payload?: GmailMessagePart;
 };
 
 export function gmailConfigured() {
@@ -110,6 +120,45 @@ function headerValue(message: GmailMessageResponse, name: string) {
   return message.payload?.headers?.find((header) => header.name.toLowerCase() === name.toLowerCase())?.value || "";
 }
 
+function decodeGmailBody(data?: string) {
+  if (!data) return "";
+  try {
+    return Buffer.from(data, "base64url").toString("utf8");
+  } catch {
+    return "";
+  }
+}
+
+function stripHtml(value: string) {
+  return value
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<br\s*\/?\s*>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function mimeBodies(payload: GmailMessagePart | undefined, mimeType: string): string[] {
+  if (!payload) return [];
+  const current = payload.mimeType === mimeType ? decodeGmailBody(payload.body?.data).trim() : "";
+  return [current, ...(payload.parts ?? []).flatMap((part) => mimeBodies(part, mimeType))].filter(Boolean);
+}
+
+function messageBody(payload?: GmailMessagePart): string {
+  const plain = mimeBodies(payload, "text/plain").join("\n\n").trim();
+  if (plain) return plain;
+  return mimeBodies(payload, "text/html").map(stripHtml).filter(Boolean).join("\n\n").trim();
+}
+
 export async function listCustomerMessages(
   supabase: SupabaseClient,
   account: EmailAccount,
@@ -157,6 +206,51 @@ export async function listCustomerMessages(
       date: internalDate || (headerDate ? new Date(headerDate).toISOString() : new Date().toISOString()),
     }];
   }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+export async function listCustomerMessageHistory(
+  supabase: SupabaseClient,
+  account: EmailAccount,
+  customer: Customer,
+  maxResults = 12,
+) {
+  const customerEmail = customer.contact_email?.trim().toLowerCase();
+  if (!customerEmail) return [] as GmailMessageContext[];
+
+  const accessToken = await getGmailAccessToken(supabase, account);
+  const params = new URLSearchParams({
+    maxResults: String(Math.min(Math.max(maxResults, 1), 20)),
+    q: `newer_than:5y {from:${customerEmail} to:${customerEmail}}`,
+  });
+  const list = await gmailJson<GmailListResponse>(accessToken, `https://gmail.googleapis.com/gmail/v1/users/me/messages?${params}`);
+  const messages = await Promise.all((list.messages ?? []).map(({ id }) => {
+    const detailParams = new URLSearchParams({ format: "full" });
+    return gmailJson<GmailMessageResponse>(accessToken, `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?${detailParams}`);
+  }));
+
+  const accountEmail = account.email.toLowerCase();
+  return messages.map((message): GmailMessageContext => {
+    const from = headerValue(message, "From");
+    const to = headerValue(message, "To");
+    const cc = headerValue(message, "Cc");
+    const headerDate = headerValue(message, "Date");
+    const internalDate = message.internalDate ? new Date(Number(message.internalDate)).toISOString() : "";
+    return {
+      id: message.id,
+      threadId: message.threadId,
+      customerId: customer.id,
+      company: customer.company,
+      customerEmail,
+      direction: from.toLowerCase().includes(accountEmail) ? "sent" : "received",
+      from,
+      to,
+      cc,
+      subject: headerValue(message, "Subject") || "（无主题）",
+      snippet: message.snippet || "",
+      content: (messageBody(message.payload) || message.snippet || "").slice(0, 3000),
+      date: internalDate || (headerDate ? new Date(headerDate).toISOString() : new Date().toISOString()),
+    };
+  }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
 
 function safeHeader(value: string) {

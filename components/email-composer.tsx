@@ -41,11 +41,23 @@ export function EmailComposer({ customers }: { customers: EmailCustomerOption[] 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ customer_id: customerId, purpose }),
       });
-      const data = await response.json() as { subject?: string; body?: string; source?: "ai" | "template"; error?: string };
+      const data = await response.json() as {
+        subject?: string;
+        body?: string;
+        source?: "ai" | "template";
+        context?: { follow_ups: number; email_messages: number; signals: number };
+        error?: string;
+      };
       if (!response.ok || !data.subject || !data.body) throw new Error(data.error || "草稿生成失败。");
       setSubject(data.subject);
       setBody(data.body);
-      setStatus({ ok: true, message: data.source === "ai" ? "已根据客户资料和跟进历史生成 AI 草稿，请确认后发送。" : "已生成基础外贸邮件草稿，请确认后发送。" });
+      const context = data.context;
+      setStatus({
+        ok: true,
+        message: data.source === "ai" && context
+          ? `AI 已综合客户背景、${context.follow_ups} 条跟进记录、${context.email_messages} 封往来邮件和 ${context.signals} 条商业信号生成草稿，请确认后发送。`
+          : "已根据客户背景和可用的历史沟通记录生成草稿，请确认后发送。",
+      });
     } catch (error) {
       setStatus({ ok: false, message: error instanceof Error ? error.message : "草稿生成失败。" });
     } finally {
@@ -92,7 +104,10 @@ export function EmailComposer({ customers }: { customers: EmailCustomerOption[] 
     </div>
     <label>抄送 CC（可选，多个邮箱用逗号分隔）<input name="cc" value={cc} onChange={(event) => setCc(event.target.value)} placeholder="manager@example.com"/></label>
     <div className="draftAssistant">
-      <label>这封邮件想沟通什么（可选）<input value={purpose} onChange={(event) => setPurpose(event.target.value)} placeholder="例如：询问秋季采购计划、推荐新款目录"/></label>
+      <label>这封邮件想沟通什么（可选）
+        <input value={purpose} onChange={(event) => setPurpose(event.target.value)} placeholder="例如：询问秋季采购计划、推荐新款目录"/>
+        <small>系统会自动综合客户背景、CRM 跟进记录、历史往来邮件和商业信号，并在末尾加入固定签名。</small>
+      </label>
       <button className="secondaryButton" type="button" onClick={generateDraft} disabled={generating}>{generating ? "正在生成…" : "生成邮件草稿"}</button>
     </div>
     <label>主题<input name="subject" value={subject} onChange={(event) => setSubject(event.target.value)} required/></label>
