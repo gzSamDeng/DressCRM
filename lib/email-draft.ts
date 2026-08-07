@@ -22,6 +22,25 @@ function clean(value: string | null | undefined, maxLength = 1800) {
   return (value || "").replace(/\u0000/g, "").trim().slice(0, maxLength);
 }
 
+const cjkPattern = /[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]/;
+const sellerCentricSubjectPattern = /\b(?:follow(?:ing)?\s*up|checking\s+in|touching\s+base|reaching\s+out)\b/i;
+
+export function containsCjk(value: string) {
+  return cjkPattern.test(value);
+}
+
+export function isCustomerFocusedEnglishSubject(value: string) {
+  const subject = clean(value, 180);
+  return Boolean(subject)
+    && !containsCjk(subject)
+    && !sellerCentricSubjectPattern.test(subject);
+}
+
+function englishReference(value: string | null | undefined, fallback: string, maxLength: number) {
+  const reference = clean(value, maxLength);
+  return reference && !containsCjk(reference) ? reference : fallback;
+}
+
 export function appendSalesSignature(body: string) {
   const withoutExistingClosing = body
     .trim()
@@ -101,24 +120,30 @@ export function contextualTemplateDraft(
 ) {
   const latestReceived = [...messages].reverse().find((item) => item.direction === "received");
   const hasCommunication = messages.length > 0 || followUps.length > 0;
-  const positioning = clean(customer.customer_type, 240) || clean(customer.product_category, 240) || "fashion retail";
-  const productFit = clean(customer.recommended_line, 280) || "our premium evening dress collection";
-  const requestedPurpose = clean(purpose, 500);
+  const company = englishReference(customer.company, "your business", 240);
+  const positioning = englishReference(
+    customer.customer_type,
+    englishReference(customer.product_category, "fashion retail", 240),
+    240,
+  );
+  const productFit = englishReference(customer.recommended_line, "our premium evening dress collection", 280);
+  const requestedPurpose = englishReference(purpose, "", 500);
+  const latestSubject = englishReference(latestReceived?.subject, "", 500);
 
-  const subject = latestReceived?.subject && latestReceived.subject !== "（无主题）"
-    ? `Re: ${latestReceived.subject.replace(/^re:\s*/i, "")}`
+  const subject = latestReceived && latestSubject
+    ? `Re: ${latestSubject.replace(/^re:\s*/i, "")}`
     : hasCommunication
-      ? `Following up with ${customer.company}`
-      : `Evening dress collection for ${customer.company}`;
+      ? `New evening dress styles for ${company}`
+      : `Evening dress collection for ${company}`;
 
   const opening = latestReceived
-    ? `Thank you for your earlier message regarding “${latestReceived.subject || "our possible cooperation"}”. I wanted to follow up based on our previous conversation.`
+    ? `Thank you for your earlier message regarding “${latestSubject || "our possible cooperation"}”. I wanted to continue from our previous conversation.`
     : hasCommunication
-      ? "I wanted to follow up on our previous contact and continue the conversation at a suitable pace."
-      : `I came across ${customer.company} and noticed your focus on ${positioning}.`;
+      ? "I wanted to continue our earlier conversation and share something relevant to your business."
+      : `I came across ${company} and noticed your focus on ${positioning}.`;
 
   const purposeLine = requestedPurpose
-    ? `For this follow-up, I would like to discuss ${requestedPurpose}.`
+    ? `For this note, I would like to discuss ${requestedPurpose}.`
     : "May I ask whether you are currently reviewing new evening dress suppliers or planning an upcoming collection?";
 
   const body = [
