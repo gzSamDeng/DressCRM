@@ -79,11 +79,7 @@ export async function deleteCustomer(id: string) {
 
 export type FollowUpActionState = { ok: boolean; message: string };
 
-export async function addFollowUp(
-  customerId: string,
-  _previousState: FollowUpActionState,
-  formData: FormData,
-): Promise<FollowUpActionState> {
+async function saveFollowUp(customerId: string, formData: FormData): Promise<FollowUpActionState> {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   const summary = String(formData.get("summary") ?? "").trim();
@@ -119,7 +115,25 @@ export async function addFollowUp(
   await supabase.from("customers").update(customerUpdate).eq("id", customerId);
   revalidatePath(`/customers/${customerId}`);
   revalidatePath("/dashboard");
+  revalidatePath("/follow-up");
   return { ok: true, message: "跟进记录已保存。" };
+}
+
+export async function addFollowUp(
+  customerId: string,
+  _previousState: FollowUpActionState,
+  formData: FormData,
+): Promise<FollowUpActionState> {
+  return saveFollowUp(customerId, formData);
+}
+
+export async function addManualFollowUp(
+  _previousState: FollowUpActionState,
+  formData: FormData,
+): Promise<FollowUpActionState> {
+  const customerId = value(formData, "customer_id");
+  if (!customerId) return { ok: false, message: "请先选择客户。" };
+  return saveFollowUp(customerId, formData);
 }
 
 export async function approveDiscoveredLead(id: string) {

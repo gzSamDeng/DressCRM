@@ -28,7 +28,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
 
   return <div className="shell"><Header/><main className="container">
     <div className="breadcrumb"><Link href="/">客户线索</Link> <span>/</span> {c.company}</div>
-    <div className="sectionTitle"><div><h2>{c.company}</h2><p className="muted">{[c.city,c.country,c.customer_type].filter(Boolean).join(" · ")}</p></div><div className="toolbar"><Link className="secondaryButton" href="/">返回列表</Link><Link className="primary" href={`/customers/${id}/edit`}>编辑线索</Link><DeleteLeadForm action={delAction} company={c.company}/></div></div>
+    <div className="sectionTitle"><div><h2>{c.company}</h2><p className="muted">{[c.city,c.country,c.customer_type].filter(Boolean).join(" · ")}</p></div><div className="toolbar"><Link className="secondaryButton" href="/">返回列表</Link><Link className="secondaryButton" href={`/follow-up?channel=whatsapp&customer=${id}`}>进入客户跟进</Link><Link className="primary" href={`/customers/${id}/edit`}>编辑线索</Link><DeleteLeadForm action={delAction} company={c.company}/></div></div>
     <div className="grid2">
       <section className="card"><h3>线索资料</h3><div className="detailGrid">{fields.map(([k,v])=><div key={String(k)}><strong>{k}</strong><br/>{String(v ?? "—")}</div>)}</div></section>
       <section className="card"><h3>新增跟进记录</h3><FollowUpForm action={addAction}/></section>
