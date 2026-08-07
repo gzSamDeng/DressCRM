@@ -3,6 +3,8 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+const DEFAULT_CC = "liqingyan777@gmail.com, samteng188@gmail.com";
+
 export type EmailCustomerOption = {
   id: string;
   company: string;
@@ -15,7 +17,9 @@ export function EmailComposer({ customers }: { customers: EmailCustomerOption[] 
   const router = useRouter();
   const [customerId, setCustomerId] = useState(customers[0]?.id || "");
   const [to, setTo] = useState(customers[0]?.contact_email || "");
-  const [cc, setCc] = useState("");
+  const [cc, setCc] = useState(DEFAULT_CC);
+  const [priorityFilter, setPriorityFilter] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
   const [purpose, setPurpose] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -23,12 +27,36 @@ export function EmailComposer({ customers }: { customers: EmailCustomerOption[] 
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; message: string } | null>(null);
   const customer = useMemo(() => customers.find((item) => item.id === customerId), [customerId, customers]);
+  const filteredCustomers = useMemo(() => {
+    const keyword = customerSearch.trim().toLowerCase();
+    return customers.filter((item) => {
+      const matchesPriority = !priorityFilter || item.priority === priorityFilter;
+      const matchesSearch = !keyword || [item.company, item.contact_email, item.country ?? ""]
+        .some((value) => value.toLowerCase().includes(keyword));
+      return matchesPriority && matchesSearch;
+    });
+  }, [customerSearch, customers, priorityFilter]);
 
   function selectCustomer(id: string) {
     const selected = customers.find((item) => item.id === id);
     setCustomerId(id);
     setTo(selected?.contact_email || "");
     setStatus(null);
+  }
+
+  function updateFilters(nextPriority: string, nextSearch: string) {
+    setPriorityFilter(nextPriority);
+    setCustomerSearch(nextSearch);
+    const keyword = nextSearch.trim().toLowerCase();
+    const nextCustomers = customers.filter((item) => {
+      const matchesPriority = !nextPriority || item.priority === nextPriority;
+      const matchesSearch = !keyword || [item.company, item.contact_email, item.country ?? ""]
+        .some((value) => value.toLowerCase().includes(keyword));
+      return matchesPriority && matchesSearch;
+    });
+    if (!nextCustomers.some((item) => item.id === customerId)) {
+      selectCustomer(nextCustomers[0]?.id || "");
+    }
   }
 
   async function generateDraft() {
@@ -80,7 +108,7 @@ export function EmailComposer({ customers }: { customers: EmailCustomerOption[] 
       setPurpose("");
       form.reset();
       setTo(customer?.contact_email || "");
-      setCc("");
+      setCc(DEFAULT_CC);
       router.refresh();
     } catch (error) {
       setStatus({ ok: false, message: error instanceof Error ? error.message : "邮件发送失败。" });
@@ -95,9 +123,29 @@ export function EmailComposer({ customers }: { customers: EmailCustomerOption[] 
 
   return <form className="emailComposeForm" onSubmit={send}>
     <div className="composeRow">
+      <label>客户等级
+        <select
+          value={priorityFilter}
+          onChange={(event) => updateFilters(event.target.value, customerSearch)}
+        >
+          <option value="">全部等级</option>
+          {["A+", "A", "B", "C", "D"].map((priority) => <option key={priority} value={priority}>{priority} 级</option>)}
+        </select>
+      </label>
+      <label>搜索客户
+        <input
+          value={customerSearch}
+          onChange={(event) => updateFilters(priorityFilter, event.target.value)}
+          placeholder="输入公司、邮箱或国家"
+        />
+      </label>
+    </div>
+    <p className="customerFilterSummary">当前显示 {filteredCustomers.length} / {customers.length} 位已填写邮箱的客户</p>
+    <div className="composeRow">
       <label>选择客户
         <select name="customer_id" value={customerId} onChange={(event) => selectCustomer(event.target.value)} required>
-          {customers.map((item) => <option key={item.id} value={item.id}>{item.priority} · {item.company} · {item.contact_email}</option>)}
+          {!filteredCustomers.length && <option value="">没有符合条件的客户</option>}
+          {filteredCustomers.map((item) => <option key={item.id} value={item.id}>{item.priority} · {item.company} · {item.contact_email}</option>)}
         </select>
       </label>
       <label>收件人<input name="to" type="email" value={to} readOnly required/></label>
@@ -108,12 +156,12 @@ export function EmailComposer({ customers }: { customers: EmailCustomerOption[] 
         <input value={purpose} onChange={(event) => setPurpose(event.target.value)} placeholder="例如：询问秋季采购计划、推荐新款目录"/>
         <small>系统会自动综合客户背景、CRM 跟进记录、历史往来邮件和商业信号，并在末尾加入固定签名。</small>
       </label>
-      <button className="secondaryButton" type="button" onClick={generateDraft} disabled={generating}>{generating ? "正在生成…" : "生成邮件草稿"}</button>
+      <button className="secondaryButton" type="button" onClick={generateDraft} disabled={generating || !customerId}>{generating ? "正在生成…" : "生成邮件草稿"}</button>
     </div>
     <label>主题<input name="subject" value={subject} onChange={(event) => setSubject(event.target.value)} required/></label>
     <label>正文<textarea name="body" value={body} onChange={(event) => setBody(event.target.value)} required/></label>
     <label className="attachmentField">附件（可选，MVP 版单个文件，不超过 8MB）<input name="attachment" type="file"/></label>
     {status && <p className={status.ok ? "emailStatus success" : "emailStatus error"} role="status">{status.message}</p>}
-    <div className="composeActions"><span>发送成功后自动写入该客户的跟进记录。</span><button className="primary" disabled={sending}>{sending ? "正在发送…" : "发送邮件"}</button></div>
+    <div className="composeActions"><span>发送成功后自动写入该客户的跟进记录。</span><button className="primary" disabled={sending || !customerId}>{sending ? "正在发送…" : "发送邮件"}</button></div>
   </form>;
 }
