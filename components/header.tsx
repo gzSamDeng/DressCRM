@@ -10,6 +10,7 @@ export function Header() {
   const isLeadIntelligence = pathname.startsWith("/lead-intelligence");
   const isCustomerLeads = pathname === "/" || pathname.startsWith("/customers");
   const isFollowUp = pathname.startsWith("/email") || pathname.startsWith("/follow-up");
+  const isSettings = pathname.startsWith("/settings");
 
   return (
     <header className="topbar">
@@ -22,6 +23,7 @@ export function Header() {
         <Link className={isLeadIntelligence ? "active" : ""} aria-current={isLeadIntelligence ? "page" : undefined} href="/lead-intelligence">AI 自动获客</Link>
         <Link className={isCustomerLeads ? "active" : ""} aria-current={isCustomerLeads ? "page" : undefined} href="/">客户线索</Link>
         <Link className={isFollowUp ? "active" : ""} aria-current={isFollowUp ? "page" : undefined} href="/follow-up">客户跟进</Link>
+        <Link className={isSettings ? "active" : ""} aria-current={isSettings ? "page" : undefined} href="/settings">系统设置</Link>
         <form action={logout}><button type="submit">退出登录</button></form>
       </nav>
     </header>
