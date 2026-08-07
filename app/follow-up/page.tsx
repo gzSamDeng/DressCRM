@@ -3,10 +3,15 @@ import { redirect } from "next/navigation";
 import { FollowUpTabs } from "@/components/follow-up-tabs";
 import { Header } from "@/components/header";
 import { ManualFollowUpWorkspace, type FollowUpCustomerOption } from "@/components/manual-follow-up-workspace";
+import { PhoneWorkspace } from "@/components/phone-workspace";
+import { WhatsAppWorkspace } from "@/components/whatsapp-workspace";
 import { isManualChannel, type ManualChannel } from "@/lib/channel-draft";
 import { createClient } from "@/lib/supabase/server";
-import type { Customer, FollowUp } from "@/types/database";
+import { voiceConfigured } from "@/lib/voice";
+import { whatsappConfig, whatsappConfigured } from "@/lib/whatsapp";
+import type { Customer, FollowUp, WhatsAppMessage } from "@/types/database";
 import "./follow-up.css";
+import "./integrations.css";
 
 export const dynamic = "force-dynamic";
 
@@ -45,18 +50,49 @@ export default async function FollowUpPage({
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect("/login");
 
-  const [{ data: customerData }, { data: followUpData }, { data: profileData }] = await Promise.all([
+  const [{ data: customerData }, { data: followUpData }, { data: profileData }, { data: whatsappData }] = await Promise.all([
     supabase.from("customers").select("*").order("company", { ascending: true }),
     supabase.from("follow_ups").select("*").order("happened_at", { ascending: false }).limit(300),
     supabase.from("user_profiles").select("id,email,display_name"),
+    supabase.from("whatsapp_messages").select("*").order("happened_at", { ascending: false }).limit(500),
   ]);
   const customers = (customerData ?? []) as Customer[];
   const followUps = (followUpData ?? []) as FollowUp[];
   const profiles = (profileData ?? []) as Profile[];
   const customerMap = new Map(customers.map((item) => [item.id, item]));
+  const storedWhatsAppMessages = (whatsappData ?? []) as WhatsAppMessage[];
+  const whatsappMessages = storedWhatsAppMessages.length ? storedWhatsAppMessages : followUps
+    .filter((item) => item.channel === "WhatsApp")
+    .map((item) => {
+      const inbound = item.summary.startsWith("客户 WhatsApp 回复：");
+      return {
+        id: `follow-up-${item.id}`,
+        meta_message_id: item.outcome?.match(/wa:([^\s·]+)/)?.[1] || `follow-up-${item.id}`,
+        customer_id: item.customer_id,
+        direction: inbound ? "inbound" : "outbound",
+        from_number: inbound ? customerMap.get(item.customer_id)?.whatsapp || "" : whatsappConfig().displayNumber,
+        to_number: inbound ? whatsappConfig().displayNumber : customerMap.get(item.customer_id)?.whatsapp || "",
+        contact_name: null,
+        message_type: "text",
+        text_body: item.summary.replace(/^客户 WhatsApp 回复：|^发送 WhatsApp (?:模板|消息)：/, ""),
+        media_id: null,
+        media_mime_type: null,
+        status: inbound ? "received" : "sent",
+        error_text: null,
+        raw_payload: {},
+        sent_by: item.created_by,
+        happened_at: item.happened_at,
+        created_at: item.created_at,
+        updated_at: item.created_at,
+      } satisfies WhatsAppMessage;
+    });
+  const now = new Date();
+  const whatsappWindowStart = now.getTime() - 24 * 3_600_000;
+  const openWhatsAppWindowCustomerIds = Array.from(new Set(whatsappMessages
+    .filter((item) => item.customer_id && item.direction === "inbound" && new Date(item.happened_at).getTime() >= whatsappWindowStart)
+    .map((item) => item.customer_id!)));
   const profileMap = new Map(profiles.map((item) => [item.id, item.email || item.display_name || "未命名业务员"]));
   const priorityRank: Record<string, number> = { "A+": 0, A: 1, B: 2, C: 3, D: 4 };
-  const now = new Date();
   const todayStart = chinaDayStart(now);
   const tomorrowStart = new Date(todayStart.getTime() + 86_400_000);
   const todayFollowUps = followUps.filter((item) => {
@@ -121,6 +157,18 @@ export default async function FollowUpPage({
           })}{!followUps.length && <p className="followUpEmpty">还没有跟进记录。</p>}</div>
         </section>
       </div>
-    </> : <ManualFollowUpWorkspace channel={channel} customers={options} initialCustomerId={params.customer}/>}
+    </> : channel === "WhatsApp" ? <WhatsAppWorkspace
+      customers={options}
+      messages={whatsappMessages}
+      configured={whatsappConfigured()}
+      displayNumber={whatsappConfig().displayNumber}
+      webhookUrl={`${process.env.NEXT_PUBLIC_APP_URL || "https://dress-crm.vercel.app"}/api/whatsapp/webhook`}
+      openWindowCustomerIds={openWhatsAppWindowCustomerIds}
+      initialCustomerId={params.customer}
+    /> : channel === "Phone" ? <PhoneWorkspace
+      customers={options}
+      configured={voiceConfigured()}
+      initialCustomerId={params.customer}
+    /> : <ManualFollowUpWorkspace channel={channel} customers={options} initialCustomerId={params.customer}/>}
   </main></div>;
 }

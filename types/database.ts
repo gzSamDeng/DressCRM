@@ -37,6 +37,27 @@ export type FollowUp = {
   created_by: string | null;
 };
 
+export type WhatsAppMessage = {
+  id: string;
+  meta_message_id: string;
+  customer_id: string | null;
+  direction: "inbound" | "outbound";
+  from_number: string;
+  to_number: string;
+  contact_name: string | null;
+  message_type: string;
+  text_body: string | null;
+  media_id: string | null;
+  media_mime_type: string | null;
+  status: string;
+  error_text: string | null;
+  raw_payload: Record<string, unknown> | null;
+  sent_by: string | null;
+  happened_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type EmailAccount = {
   id: string;
   user_id: string;
