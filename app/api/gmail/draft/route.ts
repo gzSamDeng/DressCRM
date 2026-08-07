@@ -65,7 +65,12 @@ export async function POST(request: Request) {
 
     const fallback = contextualTemplateDraft(customer, followUps, messages, purpose);
     const counts = contextCounts(followUps, messages, signals);
-    if (!process.env.OPENAI_API_KEY) return NextResponse.json({ ...fallback, context: counts });
+    const directOpenAiKey = process.env.OPENAI_API_KEY;
+    const gatewayToken = process.env.AI_GATEWAY_API_KEY
+      || process.env.VERCEL_OIDC_TOKEN
+      || request.headers.get("x-vercel-oidc-token");
+    const aiToken = directOpenAiKey || gatewayToken;
+    if (!aiToken) return NextResponse.json({ ...fallback, context: counts });
 
     const instructions = [
       "Role: You write high-quality B2B export sales follow-up emails for an evening-dress supplier.",
@@ -82,22 +87,44 @@ export async function POST(request: Request) {
       "Output: JSON only, with exactly two string fields: subject and body.",
     ].join("\n");
 
-    const aiResponse = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
+    const useGateway = !directOpenAiKey;
+    const aiResponse = await fetch(
+      useGateway ? "https://ai-gateway.vercel.sh/v1/responses" : "https://api.openai.com/v1/responses",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${aiToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: useGateway
+            ? process.env.AI_GATEWAY_MODEL || "openai/gpt-5.4-mini"
+            : process.env.OPENAI_MODEL || "gpt-5.6-terra",
+          instructions,
+          input: buildDraftContext(customer, followUps, messages, signals, purpose),
+          reasoning: { effort: "low" },
+          text: {
+            verbosity: "low",
+            format: {
+              type: "json_schema",
+              name: "sales_email_draft",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  subject: { type: "string" },
+                  body: { type: "string" },
+                },
+                required: ["subject", "body"],
+                additionalProperties: false,
+              },
+            },
+          },
+          max_output_tokens: 900,
+        }),
+        cache: "no-store",
       },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-5.6-terra",
-        instructions,
-        input: buildDraftContext(customer, followUps, messages, signals, purpose),
-        reasoning: { effort: "low" },
-        text: { verbosity: "low" },
-        max_output_tokens: 900,
-      }),
-      cache: "no-store",
-    });
+    );
     if (!aiResponse.ok) return NextResponse.json({ ...fallback, context: counts });
 
     const text = responseText(await aiResponse.json()).replace(/^```json\s*|\s*```$/g, "").trim();
