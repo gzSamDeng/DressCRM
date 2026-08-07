@@ -1,14 +1,16 @@
 import { randomUUID } from "crypto";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { gmailConfigured, gmailRedirectUri, gmailScopes } from "@/lib/gmail";
+import { gmailRedirectUri, gmailScopes } from "@/lib/gmail";
+import { isEmailAdmin, sharedGmailAddress, sharedGmailConfigured } from "@/lib/shared-gmail";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return NextResponse.redirect(new URL("/login", request.url));
-  if (!gmailConfigured()) return NextResponse.redirect(new URL("/email?error=google_not_configured", request.url));
+  if (!isEmailAdmin(auth.user.email)) return NextResponse.redirect(new URL("/email?error=admin_required", request.url));
+  if (!sharedGmailConfigured()) return NextResponse.redirect(new URL("/email?error=google_not_configured", request.url));
 
   const state = randomUUID();
   const cookieStore = await cookies();
@@ -30,7 +32,7 @@ export async function GET(request: NextRequest) {
     prompt: "consent",
     include_granted_scopes: "true",
     state,
-    login_hint: auth.user.email || "",
+    login_hint: sharedGmailAddress(),
   }).toString();
   return NextResponse.redirect(authorize);
 }

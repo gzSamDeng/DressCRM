@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { gmailRedirectUri } from "@/lib/gmail";
+import { isEmailAdmin, sharedGmailAddress, sharedGmailConfigured } from "@/lib/shared-gmail";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 function emailRedirect(request: NextRequest, params: Record<string, string>) {
@@ -13,6 +15,7 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return NextResponse.redirect(new URL("/login", request.url));
+  if (!isEmailAdmin(auth.user.email)) return emailRedirect(request, { error: "admin_required" });
 
   const code = request.nextUrl.searchParams.get("code");
   const state = request.nextUrl.searchParams.get("state");
@@ -21,7 +24,9 @@ export async function GET(request: NextRequest) {
   const expectedState = cookieStore.get("gmail_oauth_state")?.value;
   if (oauthError) return emailRedirect(request, { error: oauthError });
   if (!code || !state || !expectedState || state !== expectedState) return emailRedirect(request, { error: "invalid_oauth_state" });
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) return emailRedirect(request, { error: "google_not_configured" });
+  if (!sharedGmailConfigured() || !process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    return emailRedirect(request, { error: "google_not_configured" });
+  }
 
   const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -49,16 +54,22 @@ export async function GET(request: NextRequest) {
   });
   if (!profileResponse.ok) return emailRedirect(request, { error: "gmail_profile_failed" });
   const profile = await profileResponse.json() as { emailAddress: string };
-  const { data: existing } = await supabase
+  if (profile.emailAddress.trim().toLowerCase() !== sharedGmailAddress()) {
+    return emailRedirect(request, { error: "wrong_google_account" });
+  }
+
+  const admin = createAdminClient();
+  const { data: existing } = await admin
     .from("email_accounts")
     .select("refresh_token")
     .eq("user_id", auth.user.id)
     .eq("provider", "google")
+    .ilike("email", sharedGmailAddress())
     .maybeSingle();
   const refreshToken = token.refresh_token || existing?.refresh_token;
   if (!refreshToken) return emailRedirect(request, { error: "missing_refresh_token" });
 
-  const { error } = await supabase.from("email_accounts").upsert({
+  const { error } = await admin.from("email_accounts").upsert({
     user_id: auth.user.id,
     provider: "google",
     email: profile.emailAddress,

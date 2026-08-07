@@ -147,10 +147,20 @@ export async function approveDiscoveredLead(id: string) {
       couture_fit: Math.max(0, lead.ai_score - 8),
       import_probability: (lead.signals ?? []).includes("importer") ? "High" : "Needs verification",
       buyer_value: `AI Score ${lead.ai_score} · ${lead.ai_grade}`,
+      contact_email: lead.contact_email,
+      whatsapp: lead.whatsapp || lead.contact_phone,
       recommended_line: lead.recommendation,
       evidence: (lead.evidence ?? []).join("\n"),
       source_url: lead.source_url,
-      notes: "由 AI Lead Intelligence 审核批准进入 CRM。",
+      notes: [
+        "由 AI Lead Intelligence 审核批准进入 CRM。",
+        lead.contact_name ? `联系人：${lead.contact_name}` : null,
+        lead.contact_phone ? `电话：${lead.contact_phone}` : null,
+        lead.instagram ? `Instagram：${lead.instagram}` : null,
+        lead.facebook ? `Facebook：${lead.facebook}` : null,
+        lead.linkedin ? `LinkedIn：${lead.linkedin}` : null,
+        lead.exhibitor_source ? `展会来源：${lead.exhibitor_source}` : null,
+      ].filter(Boolean).join("\n"),
     };
     const { data: inserted, error: insertError } = await supabase
       .from("customers")

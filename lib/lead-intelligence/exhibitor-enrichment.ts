@@ -1,4 +1,3 @@
-
 import { scoreLead } from "./score";
 import type { BuyerSignal, ScoredLead } from "./types";
 
@@ -195,4 +194,3 @@ export async function enrichExhibitor(seed: ExhibitorSeed): Promise<EnrichedExhi
     dataCompleteness: completeness,
   };
 }
-
