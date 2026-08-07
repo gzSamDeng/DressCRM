@@ -1,0 +1,36 @@
+.settingsPage { max-width: 1280px; }
+.settingsAdminBadge { align-self: center; padding: 9px 13px; border: 1px solid #cbd5e1; border-radius: 999px; background: #fff; color: #475569; font-size: 12px; }
+.settingsLayout { display: grid; grid-template-columns: minmax(360px, .82fr) minmax(480px, 1.18fr); gap: 18px; align-items: start; }
+.settingsForm { overflow: hidden; background: #fff; border: 1px solid #dce3e9; border-radius: 16px; box-shadow: 0 4px 16px rgba(15,23,42,.04); }
+.settingsFormHeader, .accountListHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px; border-bottom: 1px solid #e7ebef; }
+.settingsFormHeader h3, .accountListHeader h3 { margin: 0 0 5px; font-size: 20px; }
+.settingsFormHeader p, .accountListHeader p { margin: 0; color: #64748b; font-size: 13px; line-height: 1.5; }
+.settingsFormHeader > span { padding: 5px 9px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 11px; white-space: nowrap; }
+.settingsFields { display: grid; gap: 15px; padding: 20px; }
+.settingsFields label { display: grid; gap: 7px; color: #1e293b; font-size: 13px; font-weight: 700; }
+.settingsFields input { width: 100%; border: 1px solid #cbd5e1; border-radius: 9px; padding: 11px 12px; background: #fff; }
+.passwordInputWrap { display: flex; align-items: stretch; }
+.passwordInputWrap input { border-radius: 9px 0 0 9px; }
+.passwordInputWrap button { min-width: 62px; border: 1px solid #cbd5e1; border-left: 0; border-radius: 0 9px 9px 0; background: #f8fafc; color: #475569; cursor: pointer; }
+.settingsFormFooter { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px 20px; border-top: 1px solid #e7ebef; background: #f8fafc; }
+.settingsFormFooter p { margin: 0; color: #64748b; font-size: 12px; }
+.settingsFormFooter button:disabled { opacity: .55; cursor: wait; }
+.settingsNotice { margin: 16px 20px 0; padding: 10px 12px; border-radius: 9px; font-size: 13px; }
+.settingsNotice.success { background: #dcfce7; color: #166534; }
+.settingsNotice.error { background: #fee2e2; color: #991b1b; }
+.accountListCard { padding: 0; overflow: hidden; }
+.accountListHeader strong { display: grid; place-items: center; min-width: 42px; height: 42px; border-radius: 12px; background: #eaf1f8; color: #123b4a; font-size: 20px; }
+.accountList { max-height: 560px; overflow: auto; }
+.accountRow { display: grid; grid-template-columns: 42px minmax(0,1fr) auto; gap: 12px; align-items: center; padding: 14px 18px; border-bottom: 1px solid #edf0f3; }
+.accountRow:last-child { border-bottom: 0; }
+.accountAvatar { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #17382c; color: #fff; font-weight: 800; }
+.accountRow > div:nth-child(2) { display: grid; gap: 3px; min-width: 0; }
+.accountRow > div:nth-child(2) span { overflow: hidden; color: #64748b; font-size: 12px; text-overflow: ellipsis; }
+.accountMeta { display: grid; justify-items: end; gap: 4px; }
+.accountMeta span { padding: 4px 7px; border-radius: 999px; background: #dcfce7; color: #166534; font-size: 10px; }
+.accountMeta small { color: #94a3b8; font-size: 10px; white-space: nowrap; }
+.settingsEmpty { padding: 30px; color: #64748b; text-align: center; }
+.settingsDenied { max-width: 640px; }
+.settingsDenied p { margin-bottom: 0; color: #64748b; }
+@media (max-width: 900px) { .settingsLayout { grid-template-columns: 1fr; } .settingsAdminBadge { margin-top: 14px; display: inline-block; } }
+@media (max-width: 620px) { .accountRow { grid-template-columns: 38px minmax(0,1fr); } .accountMeta { grid-column: 2; justify-items: start; } .settingsFormFooter { align-items: stretch; flex-direction: column; } }
