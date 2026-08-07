@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getGmailAccount, listCustomerMessages } from "@/lib/gmail";
+import { listCustomerMessages } from "@/lib/gmail";
+import { getSharedGmailAccount } from "@/lib/shared-gmail";
 import { createClient } from "@/lib/supabase/server";
 import type { Customer, FollowUp } from "@/types/database";
 
@@ -50,9 +51,9 @@ export async function POST(request: Request) {
 
     let emailHistory = "None";
     try {
-      const account = await getGmailAccount(supabase, auth.user.id);
-      if (account) {
-        const messages = await listCustomerMessages(supabase, account, [customer]);
+      const shared = await getSharedGmailAccount();
+      if (shared.account) {
+        const messages = await listCustomerMessages(shared.supabase, shared.account, [customer]);
         emailHistory = messages.slice(0, 5).map((item) =>
           `${item.date} · ${item.direction} · ${item.subject} · ${item.snippet.slice(0, 500)}`
         ).join(" | ") || "None";

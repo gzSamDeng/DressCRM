@@ -1,7 +1,8 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { coldCadenceDays } from "@/lib/follow-up-priority";
-import { buildRawEmail, getGmailAccount, sendGmailMessage } from "@/lib/gmail";
+import { buildRawEmail, sendGmailMessage } from "@/lib/gmail";
+import { getSharedGmailAccount } from "@/lib/shared-gmail";
 import { createClient } from "@/lib/supabase/server";
 import type { Customer } from "@/types/database";
 
@@ -12,8 +13,8 @@ export async function POST(request: Request) {
     const supabase = await createClient();
     const { data: auth } = await supabase.auth.getUser();
     if (!auth.user) return NextResponse.json({ error: "请先登录系统。" }, { status: 401 });
-    const account = await getGmailAccount(supabase, auth.user.id);
-    if (!account) return NextResponse.json({ error: "请先连接 Google 邮箱。" }, { status: 400 });
+    const shared = await getSharedGmailAccount();
+    if (!shared.account) return NextResponse.json({ error: "共享 Google 邮箱尚未完成管理员授权。" }, { status: 503 });
 
     const formData = await request.formData();
     const customerId = String(formData.get("customer_id") || "");
@@ -43,8 +44,8 @@ export async function POST(request: Request) {
       attachment = { name: file.name, type: file.type || "application/octet-stream", bytes: Buffer.from(await file.arrayBuffer()) };
     }
 
-    const raw = buildRawEmail({ from: account.email, to, cc: ccAddresses.join(", "), subject, body, attachment });
-    const sent = await sendGmailMessage(supabase, account, raw);
+    const raw = buildRawEmail({ from: shared.account.email, to, cc: ccAddresses.join(", "), subject, body, attachment });
+    const sent = await sendGmailMessage(shared.supabase, shared.account, raw);
     const { error: followUpError } = await supabase.from("follow_ups").insert({
       customer_id: customer.id,
       channel: "Email",
