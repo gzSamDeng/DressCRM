@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { EmailComposer, type EmailCustomerOption } from "@/components/email-composer";
+import { FollowUpTabs } from "@/components/follow-up-tabs";
 import { Header } from "@/components/header";
 import { listCustomerMessages, type GmailMessageSummary } from "@/lib/gmail";
 import { getSharedGmailAccount, isEmailAdmin, sharedGmailAddress, sharedGmailConfigured } from "@/lib/shared-gmail";
@@ -7,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Customer } from "@/types/database";
 import "./email.css";
 import "./email-enhancements.css";
+import "../follow-up/follow-up.css";
 
 export const dynamic = "force-dynamic";
 
@@ -80,7 +82,8 @@ export default async function EmailPage({ searchParams }: { searchParams: Promis
   const sender = sharedGmailAddress();
 
   return <div className="shell"><Header/><main className="container emailPage">
-    <div className="pageHeader"><div><span className="pageKicker">EMAIL FOLLOW-UP</span><h2>邮件跟进</h2><p>全员共用一个业务邮箱，支持客户往来邮件、AI 草稿、发送和自动留痕。</p></div></div>
+    <div className="pageHeader"><div><span className="pageKicker">CUSTOMER FOLLOW-UP · EMAIL</span><h2>客户跟进 · 邮件</h2><p>全员共用一个业务邮箱，支持客户往来邮件、AI 草稿、发送和自动留痕。</p></div><a className="secondaryButton" href="/follow-up">返回跟进总览</a></div>
+    <FollowUpTabs active="email"/>
 
     {params.error && <div className="emailNotice error">{errorMessages[params.error] || `Google 邮箱连接失败：${params.error}`}</div>}
     {params.connected && <div className="emailNotice success">共享 Google 邮箱已连接，全体业务员可以使用。</div>}

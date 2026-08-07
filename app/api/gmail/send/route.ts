@@ -64,6 +64,7 @@ export async function POST(request: Request) {
     }).eq("id", customer.id);
 
     revalidatePath("/email");
+    revalidatePath("/follow-up");
     revalidatePath(`/customers/${customer.id}`);
     revalidatePath("/dashboard");
     return NextResponse.json({ ok: true, message: "邮件已发送，并已自动写入客户跟进记录。", id: sent.id });
