@@ -5,49 +5,31 @@ import { useRouter } from "next/navigation";
 import { addManualFollowUp, type FollowUpActionState } from "@/app/actions";
 import type { FollowUpCustomerOption } from "@/components/manual-follow-up-workspace";
 
-type TelnyxCall = { id?: string; state?: string; hangup: () => void };
-type TelnyxClient = {
-  remoteElement: string;
-  connect: () => void;
-  disconnect: () => void;
-  newCall: (options: Record<string, unknown>) => TelnyxCall;
-  on: (event: string, handler: (payload?: { call?: TelnyxCall; type?: string }) => void) => TelnyxClient;
-};
+const initialState: FollowUpActionState = { ok: false, message: "" };
+const didwwAppDocs = "https://doc.didww.com/phone-systems/app/index.html";
 
-declare global {
-  interface Window {
-    TelnyxWebRTC?: { TelnyxRTC: new (options: Record<string, unknown>) => TelnyxClient };
-  }
+function normalizeDestination(value: string | null | undefined) {
+  const trimmed = (value || "").trim();
+  if (!trimmed) return "";
+  const digits = trimmed.replace(/\D/g, "");
+  return digits ? `+${digits}` : "";
 }
 
-const initialState: FollowUpActionState = { ok: false, message: "" };
-
-function loadTelnyxSdk() {
-  if (window.TelnyxWebRTC) return Promise.resolve();
-  return new Promise<void>((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>('script[data-telnyx-webrtc="true"]');
-    if (existing) {
-      existing.addEventListener("load", () => resolve(), { once: true });
-      existing.addEventListener("error", () => reject(new Error("电话组件加载失败。")), { once: true });
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = "https://unpkg.com/@telnyx/webrtc@2.9.0/lib/bundle.js";
-    script.async = true;
-    script.dataset.telnyxWebrtc = "true";
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("电话组件加载失败，请检查网络。"));
-    document.head.appendChild(script);
-  });
+function matchesFilters(item: FollowUpCustomerOption, priority: string, search: string) {
+  const keyword = search.trim().toLowerCase();
+  return (!priority || item.priority === priority)
+    && (!keyword || [item.company, item.country || "", item.whatsapp || ""].some((value) => value.toLowerCase().includes(keyword)));
 }
 
 export function PhoneWorkspace({
   customers,
   configured,
+  callerNumber,
   initialCustomerId,
 }: {
   customers: FollowUpCustomerOption[];
   configured: boolean;
+  callerNumber?: string;
   initialCustomerId?: string;
 }) {
   const router = useRouter();
@@ -60,97 +42,61 @@ export function PhoneWorkspace({
   const [purpose, setPurpose] = useState("");
   const [outline, setOutline] = useState("");
   const [summary, setSummary] = useState("");
-  const [status, setStatus] = useState(configured ? "电话线路尚未连接" : "等待管理员配置 Telnyx");
-  const [ready, setReady] = useState(false);
-  const [connecting, setConnecting] = useState(false);
-  const [inCall, setInCall] = useState(false);
-  const clientRef = useRef<TelnyxClient | null>(null);
-  const callRef = useRef<TelnyxCall | null>(null);
+  const [status, setStatus] = useState(
+    configured ? "DIDWW 电话线路已配置，可以发起拨号。" : "等待管理员开通 DIDWW phone.systems 线路。",
+  );
+  const [dialing, setDialing] = useState(false);
+  const [savingCall, setSavingCall] = useState(false);
   const startedAtRef = useRef<string | null>(null);
-  const loggedRef = useRef(new Set<string>());
   const customer = customers.find((item) => item.id === customerId);
-  const destination = (customer?.whatsapp || "").replace(/[^\d+]/g, "");
+  const destination = normalizeDestination(customer?.whatsapp);
 
   const filtered = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-    return customers.filter((item) =>
-      (!priority || item.priority === priority)
-      && (!keyword || [item.company, item.country || "", item.whatsapp || ""].some((value) => value.toLowerCase().includes(keyword))),
-    );
+    return customers.filter((item) => matchesFilters(item, priority, search));
   }, [customers, priority, search]);
 
-  useEffect(() => () => clientRef.current?.disconnect(), []);
   useEffect(() => { if (formState.ok) router.refresh(); }, [formState.ok, router]);
 
-  async function saveAutomaticCallLog(call: TelnyxCall, callStatus: string) {
-    const key = call.id || startedAtRef.current || "";
-    if (!key || loggedRef.current.has(key) || !startedAtRef.current) return;
-    loggedRef.current.add(key);
-    await fetch("/api/voice/call-log", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        customer_id: customerId,
-        destination,
-        call_id: call.id,
-        started_at: startedAtRef.current,
-        ended_at: new Date().toISOString(),
-        status: callStatus,
-      }),
-    });
-    router.refresh();
-  }
-
-  async function connectPhone() {
-    if (!configured || connecting || ready) return;
-    setConnecting(true);
-    setStatus("正在申请麦克风权限并连接电话线路…");
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((track) => track.stop());
-      await loadTelnyxSdk();
-      const response = await fetch("/api/voice/token", { method: "POST" });
-      const data = await response.json() as { token?: string; callerNumber?: string; error?: string };
-      if (!response.ok || !data.token) throw new Error(data.error || "电话令牌获取失败。");
-      const Constructor = window.TelnyxWebRTC?.TelnyxRTC;
-      if (!Constructor) throw new Error("电话组件没有正确加载。");
-      const client = new Constructor({ login_token: data.token, enableCallReports: true });
-      client.remoteElement = "telnyxRemoteAudio";
-      client
-        .on("telnyx.ready", () => { setReady(true); setConnecting(false); setStatus(`电话线路已连接 · 主叫 ${data.callerNumber || "Telnyx"}`); })
-        .on("telnyx.error", () => { setReady(false); setConnecting(false); setStatus("电话线路连接失败，请检查管理员配置。"); })
-        .on("telnyx.notification", (notification) => {
-          const call = notification?.call;
-          if (!call) return;
-          callRef.current = call;
-          const callState = call.state || notification?.type || "更新中";
-          setStatus(`通话状态：${callState}`);
-          if (["active", "answered"].includes(callState)) setInCall(true);
-          if (["destroy", "destroyed", "hangup", "purge"].includes(callState)) {
-            setInCall(false);
-            void saveAutomaticCallLog(call, callState);
-          }
-        });
-      clientRef.current = client;
-      client.connect();
-    } catch (error) {
-      setConnecting(false);
-      setStatus(error instanceof Error ? error.message : "电话线路连接失败。");
-    }
+  function applyFilters(nextPriority: string, nextSearch: string) {
+    const nextCustomers = customers.filter((item) => matchesFilters(item, nextPriority, nextSearch));
+    if (!nextCustomers.some((item) => item.id === customerId)) setCustomerId(nextCustomers[0]?.id || "");
   }
 
   function dial() {
-    if (!clientRef.current || !ready || !destination) return;
+    if (!configured || !destination || dialing) return;
     startedAtRef.current = new Date().toISOString();
-    const call = clientRef.current.newCall({ destinationNumber: destination, audio: true });
-    callRef.current = call;
-    setInCall(true);
-    setStatus(`正在拨打 ${destination}…`);
+    setDialing(true);
+    setStatus(`已向 DIDWW phone.systems 发起拨号：${destination}。通话结束后请返回本页保存结果。`);
+    window.location.href = `phone.systems://call?number=${encodeURIComponent(destination)}`;
   }
 
-  function hangup() {
-    callRef.current?.hangup();
-    setInCall(false);
+  async function finishAndLogCall() {
+    if (!startedAtRef.current || savingCall) return;
+    setSavingCall(true);
+    try {
+      const response = await fetch("/api/voice/call-log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer_id: customerId,
+          destination,
+          provider: "DIDWW phone.systems",
+          started_at: startedAtRef.current,
+          ended_at: new Date().toISOString(),
+          status: "业务员结束通话",
+        }),
+      });
+      const data = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(data.error || "通话留痕失败。");
+      startedAtRef.current = null;
+      setDialing(false);
+      setStatus("通话拨号记录已保存。请在右侧补充客户反馈和下一步。 ");
+      router.refresh();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "通话留痕失败。");
+    } finally {
+      setSavingCall(false);
+    }
   }
 
   async function generateOutline() {
@@ -164,22 +110,32 @@ export function PhoneWorkspace({
 
   return <div className="manualWorkspace phoneWorkspace">
     <section className="card manualAssistant">
-      <div className="panelHeading"><div><h3>网页电话</h3><p>通过 Telnyx WebRTC 在当前网页内真正拨打国际电话，不再打开空白浏览器窗口。</p></div><span className={configured ? "connectedBadge" : "manualBadge"}>{configured ? "线路已配置" : "等待配置"}</span></div>
-      {!configured && <div className="integrationSetup"><strong>管理员需要在 Vercel 配置 3 项</strong><code>TELNYX_API_KEY</code><code>TELNYX_TELEPHONY_CREDENTIAL_ID</code><code>TELNYX_CALLER_NUMBER</code><p>同时需在 Telnyx 购买号码、创建 Credential Connection，并为线路开通可拨国家。</p></div>}
+      <div className="panelHeading"><div><h3>DIDWW 电脑电话</h3><p>从系统一键唤起 DIDWW phone.systems 桌面应用并拨打客户电话。</p></div><span className={configured ? "connectedBadge" : "manualBadge"}>{configured ? "线路已配置" : "等待开通"}</span></div>
+      {!configured && <div className="integrationSetup">
+        <strong>首次使用需要管理员完成以下配置</strong>
+        <p>在 DIDWW 开通号码和外呼权限，启用 phone.systems 电话系统，为每位业务员创建应用线路并安装桌面客户端。</p>
+        <code>DIDWW_PHONE_SYSTEMS_ENABLED=true</code>
+        <code>DIDWW_CALLER_NUMBER=已购买的主叫号码</code>
+        <a className="secondaryButton" href={didwwAppDocs} target="_blank" rel="noreferrer">查看 DIDWW 官方安装说明</a>
+      </div>}
       <div className="filterGrid">
-        <label>客户等级<select value={priority} onChange={(event) => setPriority(event.target.value)}><option value="">全部等级</option>{["A+","A","B","C","D"].map((item) => <option key={item}>{item}</option>)}</select></label>
-        <label>搜索客户<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="公司、国家或电话号码"/></label>
+        <label>客户等级<select value={priority} onChange={(event) => { const value = event.target.value; setPriority(value); applyFilters(value, search); }}><option value="">全部等级</option>{["A+","A","B","C","D"].map((item) => <option key={item}>{item}</option>)}</select></label>
+        <label>搜索客户<input value={search} onChange={(event) => { const value = event.target.value; setSearch(value); applyFilters(priority, value); }} placeholder="公司、国家或电话号码"/></label>
       </div>
       <label>选择客户<select value={customerId} onChange={(event) => setCustomerId(event.target.value)}>{filtered.map((item) => <option value={item.id} key={item.id}>{item.priority} · {item.company} · {item.whatsapp || "无号码"}</option>)}</select></label>
-      <div className="phoneDialBar"><div><span>拨打号码</span><strong>{destination || "该客户没有电话号码"}</strong></div><button type="button" className="secondaryButton" onClick={connectPhone} disabled={!configured || connecting || ready}>{ready ? "线路已连接" : connecting ? "正在连接…" : "连接电话"}</button><button type="button" className="primary" onClick={inCall ? hangup : dial} disabled={!ready || !destination}>{inCall ? "挂断" : "拨号"}</button></div>
-      <audio id="telnyxRemoteAudio" autoPlay/>
+      <div className="phoneDialBar">
+        <div><span>拨打号码</span><strong>{destination || "该客户没有电话号码"}</strong>{callerNumber && <small>主叫：{callerNumber}</small>}</div>
+        <button type="button" className="primary" onClick={dial} disabled={!configured || !destination || dialing}>{dialing ? "已发起拨号" : "用 DIDWW 拨号"}</button>
+        {dialing && <button type="button" className="secondaryButton" onClick={finishAndLogCall} disabled={savingCall}>{savingCall ? "正在保存…" : "结束并留痕"}</button>}
+      </div>
       <p className="channelStatus" role="status">{status}</p>
+      <p className="integrationHint">电脑需要先安装并登录 phone.systems。浏览器首次唤起时请选择“允许打开”，之后拨号会直接进入 DIDWW 电话应用。</p>
       <label>本次沟通目标（可选）<input value={purpose} onChange={(event) => setPurpose(event.target.value)} placeholder="例如：确认秋季采购计划"/></label>
       <button type="button" className="secondaryButton fullButton" onClick={generateOutline} disabled={!customerId}>生成 AI 通话提纲</button>
       <label>AI 通话提纲<textarea className="channelDraft" value={outline} onChange={(event) => setOutline(event.target.value)} /></label>
     </section>
     <section className="card manualLog">
-      <div className="panelHeading"><div><h3>补充通话摘要</h3><p>拨号结果会自动留痕；接通后请补充客户需求、异议和下一步。</p></div></div>
+      <div className="panelHeading"><div><h3>补充通话摘要</h3><p>DIDWW 保存线路通话记录；业务员在这里补充客户需求、异议和下一步。</p></div></div>
       <form action={formAction} className="form">
         <input type="hidden" name="customer_id" value={customerId}/><input type="hidden" name="channel" value="Phone"/>
         <label>联系时间<input name="happened_at" type="datetime-local" defaultValue={new Date().toISOString().slice(0,16)}/></label>

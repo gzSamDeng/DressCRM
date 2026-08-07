@@ -7,7 +7,7 @@ import { PhoneWorkspace } from "@/components/phone-workspace";
 import { WhatsAppWorkspace } from "@/components/whatsapp-workspace";
 import { isManualChannel, type ManualChannel } from "@/lib/channel-draft";
 import { createClient } from "@/lib/supabase/server";
-import { voiceConfigured } from "@/lib/voice";
+import { voiceConfig, voiceConfigured } from "@/lib/voice";
 import { whatsappConfig, whatsappConfigured } from "@/lib/whatsapp";
 import type { Customer, FollowUp, WhatsAppMessage } from "@/types/database";
 import "./follow-up.css";
@@ -168,6 +168,7 @@ export default async function FollowUpPage({
     /> : channel === "Phone" ? <PhoneWorkspace
       customers={options}
       configured={voiceConfigured()}
+      callerNumber={voiceConfig().callerNumber}
       initialCustomerId={params.customer}
     /> : <ManualFollowUpWorkspace channel={channel} customers={options} initialCustomerId={params.customer}/>}
   </main></div>;
