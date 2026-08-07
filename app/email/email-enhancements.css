@@ -1,0 +1,36 @@
+.emailCustomerStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 18px;
+}
+
+.emailCustomerStats div {
+  display: grid;
+  gap: 3px;
+  padding: 12px 14px;
+  border: 1px solid #dbe4ec;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.emailCustomerStats strong {
+  color: #12243d;
+  font-size: 22px;
+}
+
+.emailCustomerStats span,
+.customerFilterSummary {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.customerFilterSummary {
+  margin: -4px 0 0;
+}
+
+@media (max-width: 700px) {
+  .emailCustomerStats {
+    grid-template-columns: 1fr;
+  }
+}

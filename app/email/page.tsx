@@ -6,6 +6,7 @@ import { getSharedGmailAccount, isEmailAdmin, sharedGmailAddress, sharedGmailCon
 import { createClient } from "@/lib/supabase/server";
 import type { Customer } from "@/types/database";
 import "./email.css";
+import "./email-enhancements.css";
 
 export const dynamic = "force-dynamic";
 
@@ -27,14 +28,17 @@ export default async function EmailPage({ searchParams }: { searchParams: Promis
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect("/login");
 
-  const { data: customerData } = await supabase
-    .from("customers")
-    .select("*")
-    .not("contact_email", "is", null)
-    .neq("contact_email", "")
-    .order("priority", { ascending: true })
-    .order("company", { ascending: true });
+  const [{ data: customerData }, { count: totalCustomerCount }] = await Promise.all([
+    supabase
+      .from("customers")
+      .select("*")
+      .not("contact_email", "is", null)
+      .neq("contact_email", "")
+      .order("company", { ascending: true }),
+    supabase.from("customers").select("id", { count: "exact", head: true }),
+  ]);
   const customers = (customerData ?? []) as Customer[];
+  const priorityRank: Record<string, number> = { "A+": 0, A: 1, B: 2, C: 3, D: 4 };
 
   const systemConfigured = sharedGmailConfigured();
   const admin = isEmailAdmin(auth.user.email);
@@ -58,13 +62,21 @@ export default async function EmailPage({ searchParams }: { searchParams: Promis
     }
   }
 
-  const options: EmailCustomerOption[] = customers.map((customer) => ({
-    id: customer.id,
-    company: customer.company,
-    contact_email: customer.contact_email!,
-    country: customer.country,
-    priority: customer.priority,
-  }));
+  const options: EmailCustomerOption[] = customers
+    .map((customer) => ({
+      id: customer.id,
+      company: customer.company,
+      contact_email: customer.contact_email!,
+      country: customer.country,
+      priority: customer.priority,
+    }))
+    .sort(
+      (left, right) =>
+        (priorityRank[left.priority] ?? 99) - (priorityRank[right.priority] ?? 99) ||
+        left.company.localeCompare(right.company),
+    );
+  const approvedCount = totalCustomerCount ?? customers.length;
+  const missingEmailCount = Math.max(approvedCount - customers.length, 0);
   const sender = sharedGmailAddress();
 
   return <div className="shell"><Header/><main className="container emailPage">
@@ -87,7 +99,15 @@ export default async function EmailPage({ searchParams }: { searchParams: Promis
       <h3>共享邮箱只需要管理员授权一次</h3>
       <div className="setupSteps"><span>1</span><p><strong>管理员授权</strong><small>使用 {sender} 登录 Google 并允许邮件权限。</small></p><span>2</span><p><strong>全员共用</strong><small>其他业务员不需要连接自己的邮箱。</small></p><span>3</span><p><strong>发送并留痕</strong><small>发送成功后自动新增客户跟进记录和操作人员。</small></p></div>
     </section> : <div className="emailWorkspace">
-      <section className="card composePanel"><div className="emailPanelHeading"><div><h3>写跟进邮件</h3><p>可先生成草稿，再由业务员确认发送。</p></div></div><EmailComposer customers={options}/></section>
+      <section className="card composePanel">
+        <div className="emailPanelHeading"><div><h3>写跟进邮件</h3><p>可先生成草稿，再由业务员确认发送。</p></div></div>
+        <div className="emailCustomerStats" aria-label="邮件客户数据说明">
+          <div><strong>{approvedCount}</strong><span>已审核客户</span></div>
+          <div><strong>{customers.length}</strong><span>可发邮件客户</span></div>
+          <div><strong>{missingEmailCount}</strong><span>缺少联系邮箱</span></div>
+        </div>
+        <EmailComposer customers={options}/>
+      </section>
       <section className="card inboxPanel"><div className="emailPanelHeading"><div><h3>客户往来邮件</h3><p>最近两年内最多显示 30 封匹配邮件。</p></div><span>{messages.length} 封</span></div>
         {mailError && <div className="emailNotice error">{mailError}</div>}
         <div className="mailList">{messages.map((message) => <article className="mailItem" key={message.id}>
