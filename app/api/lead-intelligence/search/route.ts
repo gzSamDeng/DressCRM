@@ -6,25 +6,68 @@ import { searchWithSerper } from "@/lib/lead-intelligence/serper-connector";
 
 export const maxDuration = 60;
 
+const markets = {
+  "United States": { gl: "us", location: "United States" },
+  Canada: { gl: "ca", location: "Canada" },
+  "United Kingdom": { gl: "gb", location: "United Kingdom" },
+  Germany: { gl: "de", location: "Germany" },
+  France: { gl: "fr", location: "France" },
+  Spain: { gl: "es", location: "Spain" },
+  Italy: { gl: "it", location: "Italy" },
+  Netherlands: { gl: "nl", location: "Netherlands" },
+  Poland: { gl: "pl", location: "Poland" },
+  Romania: { gl: "ro", location: "Romania" },
+  Greece: { gl: "gr", location: "Greece" },
+  Russia: { gl: "ru", location: "Russia" },
+  Australia: { gl: "au", location: "Australia" },
+  "New Zealand": { gl: "nz", location: "New Zealand" },
+  "United Arab Emirates": { gl: "ae", location: "United Arab Emirates" },
+  "Saudi Arabia": { gl: "sa", location: "Saudi Arabia" },
+  Turkey: { gl: "tr", location: "Turkey" },
+} as const;
+
+const marketPacks: Record<string, Array<keyof typeof markets>> = {
+  global_priority: ["United States", "Canada", "United Kingdom", "Germany", "France", "Australia", "New Zealand", "Russia"],
+  north_america: ["United States", "Canada"],
+  europe: ["United Kingdom", "Germany", "France", "Spain", "Italy", "Netherlands", "Poland", "Romania", "Greece"],
+  australia_nz: ["Australia", "New Zealand"],
+  russia: ["Russia"],
+  gulf: ["United Arab Emirates", "Saudi Arabia"],
+  turkey: ["Turkey"],
+};
+
+function normalizedDomain(website: string | null | undefined) {
+  if (!website) return "";
+  try {
+    return new URL(website).hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return website.toLowerCase().replace(/^https?:\/\/(www\.)?/, "").split("/")[0];
+  }
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: authData } = await supabase.auth.getUser();
   if (!authData.user) return NextResponse.json({ error: "请先登录。" }, { status: 401 });
 
-  const body = (await request.json().catch(() => ({}))) as { query?: string; minimumScore?: number };
+  const body = (await request.json().catch(() => ({}))) as {
+    query?: string;
+    minimumScore?: number;
+    marketPack?: string;
+  };
   const minimumScore = Math.min(100, Math.max(0, Number(body.minimumScore ?? 45)));
-  const baseQuery = body.query?.trim() || "Turkey evening dress importer boutique";
-  const cities = ["Istanbul","Ankara","Izmir","Bursa","Antalya","Adana","Gaziantep","Konya","Mersin","Kayseri","Samsun","Trabzon"];
+  const baseQuery = body.query?.trim() || "evening dress buyer";
+  const selectedMarkets = marketPacks[body.marketPack ?? "global_priority"] ?? marketPacks.global_priority;
   const intents = [
-    "abiye mağazası butik",
-    "lüks abiye tasarım mağazası",
-    "toptan abiye distribütör",
-    "evening dress boutique",
-    "designer occasion wear store",
+    "evening dress boutique retailer",
+    "plus size evening dress boutique",
+    "luxury beaded evening gown boutique",
   ];
-  const queries = cities.flatMap((city) =>
-    intents.map((intent) => `${baseQuery} ${city} ${intent} -site:instagram.com -site:facebook.com -site:trendyol.com`),
-  );
+  const queries = selectedMarkets.flatMap((country) => intents.map((intent) => ({
+    query: `${baseQuery} ${intent} ${country}`,
+    country,
+    ...markets[country],
+  })));
 
   const { data: template } = await supabase
     .from("intelligence_templates")
@@ -39,7 +82,7 @@ export async function POST(request: Request) {
     .from("search_jobs")
     .insert({
       template_id: template.id,
-      query: baseQuery,
+      query: `${baseQuery} · ${selectedMarkets.join(", ")}`,
       connector: "serper",
       status: "running",
       minimum_score: minimumScore,
@@ -57,16 +100,21 @@ export async function POST(request: Request) {
     ]);
     const knownWebsites = new Set(
       [...(customerRows ?? []), ...(discoveredRows ?? [])]
-        .map((row) => row.website?.toLowerCase().replace(/\/$/, ""))
+        .map((row) => normalizedDomain(row.website))
         .filter(Boolean),
     );
     const newCandidates = candidates.filter(
-      (candidate) => !knownWebsites.has(candidate.website.toLowerCase().replace(/\/$/, "")),
+      (candidate) => !knownWebsites.has(normalizedDomain(candidate.website)),
     );
-    const scoredLeads = newCandidates.map(scoreLead).sort((a, b) => b.score - a.score);
-    if (scoredLeads.length) {
+    const qualifiedLeads = newCandidates
+      .map(scoreLead)
+      .filter((lead) => lead.score >= minimumScore)
+      .sort((a, b) => b.score - a.score);
+
+    if (qualifiedLeads.length) {
       const { error: insertError } = await supabase.from("discovered_leads").insert(
-        scoredLeads.map((lead) => ({
+        qualifiedLeads.map((lead) => ({
+          source_key: `serper:${lead.id}`,
           search_job_id: job.id,
           company: lead.company,
           website: lead.website,
@@ -81,20 +129,22 @@ export async function POST(request: Request) {
           risks: lead.risks,
           recommendation: lead.recommendation,
           source_url: lead.sourceUrl,
+          review_status: "pending",
+          exhibitor_source: "全球市场实时搜索",
         })),
       );
       if (insertError) throw new Error(insertError.message);
     }
     await supabase.from("search_jobs").update({
       status: "complete",
-      candidates_found: newCandidates.length,
+      candidates_found: qualifiedLeads.length,
       completed_at: new Date().toISOString(),
     }).eq("id", job.id);
     return NextResponse.json({
       jobId: job.id,
       candidatesFound: newCandidates.length,
-      qualifiedCount: scoredLeads.filter((lead) => lead.score >= minimumScore).length,
-      leads: scoredLeads,
+      qualifiedCount: qualifiedLeads.length,
+      leads: qualifiedLeads,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "搜索失败。";

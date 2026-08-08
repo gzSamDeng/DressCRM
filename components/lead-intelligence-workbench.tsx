@@ -10,7 +10,8 @@ type RunState = "ready" | "searching" | "complete";
 export function LeadIntelligenceWorkbench() {
   const [runState, setRunState] = useState<RunState>("ready");
   const [minimumScore, setMinimumScore] = useState(45);
-  const [query, setQuery] = useState("Turkey luxury evening dress importer boutique");
+  const [marketPack, setMarketPack] = useState("global_priority");
+  const [query, setQuery] = useState("premium evening dress buyer");
   const [results, setResults] = useState<ScoredLead[]>([]);
   const [candidatesFound, setCandidatesFound] = useState(0);
   const [error, setError] = useState("");
@@ -22,7 +23,7 @@ export function LeadIntelligenceWorkbench() {
       const response = await fetch("/api/lead-intelligence/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, minimumScore }),
+        body: JSON.stringify({ query, minimumScore, marketPack }),
       });
       const payload = (await response.json()) as { error?: string; candidatesFound?: number; leads?: ScoredLead[] };
       if (!response.ok || payload.error) throw new Error(payload.error ?? "搜索失败，请稍后重试。");
@@ -72,6 +73,17 @@ export function LeadIntelligenceWorkbench() {
         </div>
 
         <div className="searchConsole">
+          <label>市场范围
+            <select value={marketPack} onChange={(event) => setMarketPack(event.target.value)}>
+              <option value="global_priority">全球重点市场</option>
+              <option value="north_america">美国与加拿大</option>
+              <option value="europe">欧洲</option>
+              <option value="australia_nz">澳大利亚与新西兰</option>
+              <option value="russia">俄罗斯</option>
+              <option value="gulf">海湾国家</option>
+              <option value="turkey">土耳其</option>
+            </select>
+          </label>
           <label>搜索任务<input value={query} onChange={(event) => setQuery(event.target.value)} /></label>
           <label>最低 AI Score
             <select value={minimumScore} onChange={(event) => setMinimumScore(Number(event.target.value))}>

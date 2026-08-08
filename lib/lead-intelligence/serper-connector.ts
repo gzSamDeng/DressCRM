@@ -12,6 +12,13 @@ type SerperResponse = {
   message?: string;
 };
 
+export type MarketSearchQuery = {
+  query: string;
+  country: string;
+  gl: string;
+  location: string;
+};
+
 const signalPatterns: Array<[BuyerSignal, RegExp]> = [
   ["importer", /\b(import|importer|ithalat|international sourcing|global sourcing)\b/i],
   ["multi_brand", /\b(multi[- ]brand|designer brands|brands we carry|our brands)\b/i],
@@ -35,7 +42,7 @@ function companyFromTitle(title: string, hostname: string) {
   return hostname.replace(/^www\./, "").split(".")[0].replace(/[-_]/g, " ");
 }
 
-function toCandidate(result: SerperOrganicResult): LeadCandidate | null {
+function toCandidate(result: SerperOrganicResult, country: string): LeadCandidate | null {
   if (!result.link || !result.title) return null;
 
   let url: URL;
@@ -62,7 +69,7 @@ function toCandidate(result: SerperOrganicResult): LeadCandidate | null {
     id: hostname,
     company: companyFromTitle(result.title, hostname),
     website: url.origin,
-    country: "Turkey",
+    country,
     city: "",
     customerType: signals.includes("wholesale")
       ? "Importer / Distributor"
@@ -78,17 +85,17 @@ function toCandidate(result: SerperOrganicResult): LeadCandidate | null {
   };
 }
 
-export async function searchWithSerper(queries: string[]) {
+export async function searchWithSerper(queries: MarketSearchQuery[]) {
   const apiKey = process.env.SERPER_API_KEY;
   if (!apiKey) throw new Error("尚未配置 SERPER_API_KEY。");
 
-  const tasks = queries.flatMap((query) =>
-    [1, 2, 3].map((page) => ({ query, page })),
+  const tasks = queries.flatMap((marketQuery) =>
+    [1, 2].map((page) => ({ ...marketQuery, page })),
   );
-  const responses: SerperOrganicResult[][] = [];
+  const responses: Array<{ country: string; results: SerperOrganicResult[] }> = [];
   for (let index = 0; index < tasks.length; index += 5) {
     const batch = await Promise.all(
-      tasks.slice(index, index + 5).map(async ({ query, page }) => {
+      tasks.slice(index, index + 5).map(async ({ query, country, gl, location, page }) => {
       let response: Response | undefined;
       for (let attempt = 0; attempt < 3; attempt += 1) {
         response = await fetch("https://google.serper.dev/search", {
@@ -99,9 +106,9 @@ export async function searchWithSerper(queries: string[]) {
           },
           body: JSON.stringify({
             q: query,
-            gl: "tr",
+            gl,
             hl: "en",
-            location: "Turkey",
+            location,
             num: 10,
             page,
           }),
@@ -130,20 +137,22 @@ export async function searchWithSerper(queries: string[]) {
 
       const data = (await response.json()) as SerperResponse;
       if (data.message) throw new Error(data.message);
-      return data.organic ?? [];
+      return { country, results: data.organic ?? [] };
       }),
     );
     responses.push(...batch);
   }
 
   const unique = new Map<string, LeadCandidate>();
-  responses.flat().forEach((result) => {
-    const candidate = toCandidate(result);
-    if (!candidate) return;
-    const existing = unique.get(candidate.id);
-    if (!existing || candidate.signals.length > existing.signals.length) {
-      unique.set(candidate.id, candidate);
-    }
+  responses.forEach(({ country, results }) => {
+    results.forEach((result) => {
+      const candidate = toCandidate(result, country);
+      if (!candidate) return;
+      const existing = unique.get(candidate.id);
+      if (!existing || candidate.signals.length > existing.signals.length) {
+        unique.set(candidate.id, candidate);
+      }
+    });
   });
 
   return [...unique.values()];
