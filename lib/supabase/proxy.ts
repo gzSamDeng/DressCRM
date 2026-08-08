@@ -3,11 +3,15 @@ import { NextResponse, type NextRequest } from "next/server";
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
+  const importKey = request.headers.get("x-import-key");
+  const isAuthorizedGlobalImport =
+    request.nextUrl.pathname === "/api/lead-intelligence/import-global" &&
+    Boolean(importKey && process.env.SERPER_API_KEY && importKey === process.env.SERPER_API_KEY);
   const isLeadDemo =
     process.env.LEAD_INTELLIGENCE_DEMO_MODE === "true" &&
     request.nextUrl.pathname.startsWith("/lead-intelligence");
 
-  if (isLeadDemo) return response;
+  if (isLeadDemo || isAuthorizedGlobalImport) return response;
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
