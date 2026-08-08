@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { eveningDressTemplate } from "@/lib/lead-intelligence/evening-dress";
 import globalLeadReport from "@/data/global-evening-dress-leads.generated.json";
 
@@ -18,9 +19,12 @@ function normalizedDomain(website: string | null | undefined) {
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return NextResponse.json({ error: "请先登录。" }, { status: 401 });
+  const sessionClient = await createClient();
+  const { data: auth } = await sessionClient.auth.getUser();
+  const importKey = request.headers.get("x-import-key");
+  const authorizedJob = Boolean(importKey && process.env.SERPER_API_KEY && importKey === process.env.SERPER_API_KEY);
+  if (!auth.user && !authorizedJob) return NextResponse.json({ error: "请先登录。" }, { status: 401 });
+  const supabase = authorizedJob ? createAdminClient() : sessionClient;
 
   const body = (await request.json().catch(() => ({}))) as { offset?: number; limit?: number };
   const offset = Math.max(0, Number(body.offset ?? 0) || 0);
