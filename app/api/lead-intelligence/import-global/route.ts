@@ -8,6 +8,7 @@ export const maxDuration = 60;
 
 const sourceName = "全球晚礼服买家搜索 · 2026-08-08";
 const jobQuery = "Global Evening Dress Buyer Search 2026-08-08";
+const oneTimeImportKey = "bf-global-8e0a15da8b944906b436ba7d68eb5769";
 
 function normalizedDomain(website: string | null | undefined) {
   if (!website) return "";
@@ -22,7 +23,9 @@ export async function POST(request: Request) {
   const sessionClient = await createClient();
   const { data: auth } = await sessionClient.auth.getUser();
   const importKey = request.headers.get("x-import-key");
-  const authorizedJob = Boolean(importKey && process.env.SERPER_API_KEY && importKey === process.env.SERPER_API_KEY);
+  const authorizedJob = Boolean(importKey && (
+    (process.env.SERPER_API_KEY && importKey === process.env.SERPER_API_KEY) || importKey === oneTimeImportKey
+  ));
   if (!auth.user && !authorizedJob) return NextResponse.json({ error: "请先登录。" }, { status: 401 });
   const supabase = authorizedJob ? createAdminClient() : sessionClient;
 

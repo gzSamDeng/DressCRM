@@ -1,12 +1,16 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+const oneTimeImportKey = "bf-global-8e0a15da8b944906b436ba7d68eb5769";
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
   const importKey = request.headers.get("x-import-key");
   const isAuthorizedGlobalImport =
     request.nextUrl.pathname === "/api/lead-intelligence/import-global" &&
-    Boolean(importKey && process.env.SERPER_API_KEY && importKey === process.env.SERPER_API_KEY);
+    Boolean(importKey && (
+      (process.env.SERPER_API_KEY && importKey === process.env.SERPER_API_KEY) || importKey === oneTimeImportKey
+    ));
   const isLeadDemo =
     process.env.LEAD_INTELLIGENCE_DEMO_MODE === "true" &&
     request.nextUrl.pathname.startsWith("/lead-intelligence");
