@@ -19,7 +19,7 @@ export function Header() {
         <small>AI Lead Intelligence & Customer Management</small>
       </Link>
       <nav className="nav">
-        <Link className={isDashboard ? "active" : ""} aria-current={isDashboard ? "page" : undefined} href="/dashboard">今日工作台</Link>
+        <Link className={isDashboard ? "active" : ""} aria-current={isDashboard ? "page" : undefined} href="/dashboard">工作看板</Link>
         <Link className={isLeadIntelligence ? "active" : ""} aria-current={isLeadIntelligence ? "page" : undefined} href="/lead-intelligence">AI 自动获客</Link>
         <Link className={isCustomerLeads ? "active" : ""} aria-current={isCustomerLeads ? "page" : undefined} href="/">客户线索</Link>
         <Link className={isFollowUp ? "active" : ""} aria-current={isFollowUp ? "page" : undefined} href="/follow-up">客户跟进</Link>

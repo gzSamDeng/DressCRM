@@ -1,6 +1,10 @@
 .settingsPage { max-width: 1280px; }
 .settingsAdminBadge { align-self: center; padding: 9px 13px; border: 1px solid #cbd5e1; border-radius: 999px; background: #fff; color: #475569; font-size: 12px; }
-.settingsLayout { display: grid; grid-template-columns: minmax(360px, .82fr) minmax(480px, 1.18fr); gap: 18px; align-items: start; }
+.settingsLayout { display: grid; grid-template-columns: minmax(340px, .7fr) minmax(620px, 1.3fr); gap: 18px; align-items: start; }
+.settingsSidebar { display: grid; gap: 18px; }
+.roleGuide { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; padding: 0; overflow: hidden; margin-bottom: 18px; background: #dce3e9; }
+.roleGuide > div { display: grid; gap: 5px; padding: 16px 18px; background: #fff; }
+.roleGuide span { color: #64748b; font-size: 12px; line-height: 1.5; }
 .settingsForm { overflow: hidden; background: #fff; border: 1px solid #dce3e9; border-radius: 16px; box-shadow: 0 4px 16px rgba(15,23,42,.04); }
 .settingsFormHeader, .accountListHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px; border-bottom: 1px solid #e7ebef; }
 .settingsFormHeader h3, .accountListHeader h3 { margin: 0 0 5px; font-size: 20px; }
@@ -8,7 +12,11 @@
 .settingsFormHeader > span { padding: 5px 9px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 11px; white-space: nowrap; }
 .settingsFields { display: grid; gap: 15px; padding: 20px; }
 .settingsFields label { display: grid; gap: 7px; color: #1e293b; font-size: 13px; font-weight: 700; }
-.settingsFields input { width: 100%; border: 1px solid #cbd5e1; border-radius: 9px; padding: 11px 12px; background: #fff; }
+.settingsFields input, .settingsFields select, .accountPermissionForm select, .teamCreateForm input { width: 100%; border: 1px solid #cbd5e1; border-radius: 9px; padding: 11px 12px; background: #fff; }
+.permissionFields { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 0; padding: 13px; border: 1px solid #dce3e9; border-radius: 10px; }
+.permissionFields legend { padding: 0 6px; color: #475569; font-size: 12px; font-weight: 800; }
+.permissionFields label { display: flex; align-items: center; gap: 7px; font-weight: 500; }
+.permissionFields input, .inlinePermissions input { width: auto; }
 .passwordInputWrap { display: flex; align-items: stretch; }
 .passwordInputWrap input { border-radius: 9px 0 0 9px; }
 .passwordInputWrap button { min-width: 62px; border: 1px solid #cbd5e1; border-left: 0; border-radius: 0 9px 9px 0; background: #f8fafc; color: #475569; cursor: pointer; }
@@ -20,7 +28,7 @@
 .settingsNotice.error { background: #fee2e2; color: #991b1b; }
 .accountListCard { padding: 0; overflow: hidden; }
 .accountListHeader strong { display: grid; place-items: center; min-width: 42px; height: 42px; border-radius: 12px; background: #eaf1f8; color: #123b4a; font-size: 20px; }
-.accountList { max-height: 560px; overflow: auto; }
+.accountList { max-height: 850px; overflow: auto; }
 .accountRow { display: grid; grid-template-columns: 42px minmax(0,1fr) auto; gap: 12px; align-items: center; padding: 14px 18px; border-bottom: 1px solid #edf0f3; }
 .accountRow:last-child { border-bottom: 0; }
 .accountAvatar { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #17382c; color: #fff; font-weight: 800; }
@@ -29,8 +37,25 @@
 .accountMeta { display: grid; justify-items: end; gap: 4px; }
 .accountMeta span { padding: 4px 7px; border-radius: 999px; background: #dcfce7; color: #166534; font-size: 10px; }
 .accountMeta small { color: #94a3b8; font-size: 10px; white-space: nowrap; }
+.accountPermissionRow { display: block; padding: 18px; }
+.accountIdentity { display: grid; grid-template-columns: 42px minmax(0,1fr); gap: 12px; align-items: center; }
+.accountIdentity > div:last-child { display: grid; gap: 3px; min-width: 0; }
+.accountIdentity span, .accountIdentity small { color: #64748b; font-size: 11px; }
+.accountPermissionForm { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; padding: 13px; border-radius: 10px; background: #f8fafc; }
+.accountPermissionForm > label, .teamCreateForm label { display: grid; gap: 5px; color: #475569; font-size: 11px; font-weight: 700; }
+.accountPermissionForm select { padding: 8px 9px; font-size: 12px; }
+.inlinePermissions { grid-column: 1/-1; display: flex; flex-wrap: wrap; gap: 14px; }
+.inlinePermissions label { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #475569; }
+.accountSaveRow { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.accountSaveRow small { color: #94a3b8; }
+.accountSaveRow button { border: 0; border-radius: 8px; padding: 8px 13px; background: #17382c; color: #fff; cursor: pointer; }
+.teamCreateForm { display: grid; gap: 13px; }
+.teamCreateForm h3 { margin: 0 0 4px; }
+.teamCreateForm p { margin: 0; color: #64748b; font-size: 12px; }
+.teamCreateForm button { justify-self: end; }
 .settingsEmpty { padding: 30px; color: #64748b; text-align: center; }
 .settingsDenied { max-width: 640px; }
 .settingsDenied p { margin-bottom: 0; color: #64748b; }
-@media (max-width: 900px) { .settingsLayout { grid-template-columns: 1fr; } .settingsAdminBadge { margin-top: 14px; display: inline-block; } }
+@media (max-width: 1000px) { .settingsLayout { grid-template-columns: 1fr; } .settingsAdminBadge { margin-top: 14px; display: inline-block; } }
+@media (max-width: 760px) { .roleGuide { grid-template-columns: 1fr; } .accountPermissionForm { grid-template-columns: 1fr; } }
 @media (max-width: 620px) { .accountRow { grid-template-columns: 38px minmax(0,1fr); } .accountMeta { grid-column: 2; justify-items: start; } .settingsFormFooter { align-items: stretch; flex-direction: column; } }

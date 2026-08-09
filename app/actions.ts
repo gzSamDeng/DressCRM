@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getAppProfile, isManagementRole } from "@/lib/access-control";
 import { coldCadenceDays, engagedCadenceDays } from "@/lib/follow-up-priority";
 
 function value(formData: FormData, key: string) {
@@ -16,6 +18,14 @@ export async function login(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) redirect("/login?error=" + encodeURIComponent(error.message));
+  const { data: auth } = await supabase.auth.getUser();
+  if (auth.user) {
+    const profile = await getAppProfile(auth.user.id, auth.user.email);
+    if (!profile.is_active) {
+      await supabase.auth.signOut();
+      redirect("/login?error=" + encodeURIComponent("账号已停用，请联系管理员。"));
+    }
+  }
   redirect("/");
 }
 
@@ -215,4 +225,54 @@ export async function rejectDiscoveredLead(id: string) {
   if (error) throw new Error(error.message);
   revalidatePath("/lead-intelligence");
   revalidatePath("/dashboard");
+}
+
+export async function assignCustomer(customerId: string, formData: FormData) {
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) throw new Error("请先登录系统。");
+  const current = await getAppProfile(auth.user.id, auth.user.email);
+  if (!isManagementRole(current.role)) throw new Error("只有业务总监或老板可以分配客户。");
+
+  const ownerId = value(formData, "owner_id");
+  const admin = createAdminClient();
+  if (current.role === "sales_director") {
+    const { data: customer, error: customerError } = await admin
+      .from("customers")
+      .select("owner_id")
+      .eq("id", customerId)
+      .single();
+    if (customerError || !customer) throw new Error("客户不存在。");
+    if (customer.owner_id) {
+      const { data: existingOwner } = await admin
+        .from("user_profiles")
+        .select("team_id")
+        .eq("id", customer.owner_id)
+        .single();
+      if (existingOwner?.team_id !== current.team_id) {
+        throw new Error("业务总监不能调整其他团队的客户。");
+      }
+    }
+  }
+  if (ownerId) {
+    const { data: target, error: targetError } = await admin
+      .from("user_profiles")
+      .select("id,team_id,is_active")
+      .eq("id", ownerId)
+      .single();
+    if (targetError || !target?.is_active) throw new Error("目标业务员不存在或已停用。");
+    if (current.role === "sales_director" && target.team_id !== current.team_id) {
+      throw new Error("业务总监只能把客户分配给自己团队的成员。");
+    }
+  }
+
+  const { error } = await admin.from("customers").update({
+    owner_id: ownerId,
+    assigned_by: auth.user.id,
+    assigned_at: new Date().toISOString(),
+  }).eq("id", customerId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/");
+  revalidatePath("/dashboard");
+  revalidatePath(`/customers/${customerId}`);
 }

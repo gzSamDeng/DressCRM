@@ -21,6 +21,9 @@ export type Customer = {
   source_url: string | null;
   notes: string | null;
   next_follow_up_at: string | null;
+  owner_id: string | null;
+  assigned_by: string | null;
+  assigned_at: string | null;
   created_at: string;
   updated_at: string;
 };
