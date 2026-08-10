@@ -209,6 +209,27 @@ export async function approveDiscoveredLead(id: string) {
     reviewed_by: auth.user?.id ?? null,
   }).eq("id", id);
   if (error) throw new Error(error.message);
+  if (customerId && lead.lead_source === "customs_import") {
+    const { error: recordError } = await supabase.from("customs_import_records").update({
+      customer_id: customerId,
+      review_status: "approved",
+    }).eq("discovered_lead_id", id);
+    if (recordError) throw new Error(recordError.message);
+    const { data: records, error: recordsError } = await supabase
+      .from("customs_import_records")
+      .select("import_date")
+      .eq("customer_id", customerId)
+      .eq("review_status", "approved");
+    if (recordsError) throw new Error(recordsError.message);
+    const dates = (records ?? []).map((record) => record.import_date).filter(Boolean).sort();
+    const { error: aggregateError } = await supabase.from("customers").update({
+      has_customs_import_records: dates.length > 0,
+      customs_import_count: dates.length,
+      first_customs_import_at: dates[0] ?? null,
+      latest_customs_import_at: dates[dates.length - 1] ?? null,
+    }).eq("id", customerId);
+    if (aggregateError) throw new Error(aggregateError.message);
+  }
   revalidatePath("/lead-intelligence");
   revalidatePath("/");
   revalidatePath("/dashboard");
@@ -223,6 +244,10 @@ export async function rejectDiscoveredLead(id: string) {
     reviewed_by: auth.user?.id ?? null,
   }).eq("id", id);
   if (error) throw new Error(error.message);
+  const { error: customsError } = await supabase.from("customs_import_records").update({
+    review_status: "rejected",
+  }).eq("discovered_lead_id", id);
+  if (customsError && customsError.code !== "42P01") throw new Error(customsError.message);
   revalidatePath("/lead-intelligence");
   revalidatePath("/dashboard");
 }
