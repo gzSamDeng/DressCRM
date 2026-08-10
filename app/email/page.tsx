@@ -105,11 +105,11 @@ export default async function EmailPage({ searchParams }: { searchParams: Promis
       <section className="card composePanel">
         <div className="emailPanelHeading"><div><h3>写跟进邮件</h3><p>可先生成草稿，再由业务员确认发送。</p></div></div>
         <div className="emailCustomerStats" aria-label="邮件客户数据说明">
-          <div><strong>{approvedCount}</strong><span>已审核客户</span></div>
+          <div><strong>{approvedCount}</strong><span>当前可见客户</span></div>
           <div><strong>{customers.length}</strong><span>可发邮件客户</span></div>
           <div><strong>{missingEmailCount}</strong><span>缺少联系邮箱</span></div>
         </div>
-        <EmailComposer customers={options}/>
+        <EmailComposer customers={options} totalCustomers={approvedCount}/>
       </section>
       <section className="card inboxPanel"><div className="emailPanelHeading"><div><h3>客户往来邮件</h3><p>最近两年内最多显示 30 封匹配邮件。</p></div><span>{messages.length} 封</span></div>
         {mailError && <div className="emailNotice error">{mailError}</div>}

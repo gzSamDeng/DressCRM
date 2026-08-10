@@ -13,7 +13,7 @@ export type EmailCustomerOption = {
   priority: string;
 };
 
-export function EmailComposer({ customers }: { customers: EmailCustomerOption[] }) {
+export function EmailComposer({ customers, totalCustomers }: { customers: EmailCustomerOption[]; totalCustomers: number }) {
   const router = useRouter();
   const [customerId, setCustomerId] = useState(customers[0]?.id || "");
   const [to, setTo] = useState(customers[0]?.contact_email || "");
@@ -118,7 +118,9 @@ export function EmailComposer({ customers }: { customers: EmailCustomerOption[] 
   }
 
   if (!customers.length) {
-    return <div className="emailEmpty"><strong>还没有可发邮件的客户</strong><p>请先在“客户线索”中为客户补充联系邮箱。</p></div>;
+    return totalCustomers === 0
+      ? <div className="emailEmpty"><strong>当前账号尚未分配客户</strong><p>请让老板或业务总监在“客户线索”的负责人栏中分配客户；分配后即可使用共享邮箱发送邮件。</p></div>
+      : <div className="emailEmpty"><strong>负责的客户还没有可用邮箱</strong><p>请先在“客户线索”中为客户补充联系邮箱。</p></div>;
   }
 
   return <form className="emailComposeForm" onSubmit={send}>
