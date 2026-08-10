@@ -1,5 +1,9 @@
 import type { Customer, FollowUp } from "@/types/database";
 import type { GmailMessageContext } from "@/lib/gmail";
+import {
+  buildCustomerMessagingProfile,
+  roleSpecificWritingRules,
+} from "@/lib/customer-messaging";
 
 export const SALES_EMAIL_SIGNATURE = [
   "-",
@@ -56,6 +60,7 @@ export function buildDraftContext(
   signals: CustomerSignalContext[],
   purpose: string,
 ) {
+  const messagingProfile = buildCustomerMessagingProfile(customer);
   const customerProfile = [
     `Company: ${clean(customer.company, 300)}`,
     `Website: ${clean(customer.website, 500) || "Unknown"}`,
@@ -70,7 +75,7 @@ export function buildDraftContext(
     `Buyer value: ${clean(customer.buyer_value, 1000) || "Not recorded"}`,
     `CRM evidence: ${clean(customer.evidence) || "None"}`,
     `CRM notes: ${clean(customer.notes) || "None"}`,
-    `Requested purpose for this email: ${clean(purpose, 1000) || "Continue the relationship and ask about the current buying plan"}`,
+    `Requested purpose for this email: ${clean(purpose, 1000) || "Start or continue a commercially useful conversation"}`,
   ].join("\n");
 
   const crmHistory = followUps.length
@@ -98,6 +103,11 @@ export function buildDraftContext(
     : "None";
 
   return [
+    "RESOLVED CUSTOMER COMMUNICATION PROFILE",
+    roleSpecificWritingRules(messagingProfile),
+    `Verified background summary: ${messagingProfile.verifiedBackground}`,
+    "Use this profile to choose the recipient vocabulary and commercial angle. Never copy internal field names into the message.",
+    "",
     "CUSTOMER PROFILE",
     customerProfile,
     "",
@@ -118,43 +128,52 @@ export function contextualTemplateDraft(
   messages: GmailMessageContext[],
   purpose: string,
 ) {
+  const profile = buildCustomerMessagingProfile(customer);
   const latestReceived = [...messages].reverse().find((item) => item.direction === "received");
   const hasCommunication = messages.length > 0 || followUps.length > 0;
   const company = englishReference(customer.company, "your business", 240);
-  const positioning = englishReference(
-    customer.customer_type,
-    englishReference(customer.product_category, "fashion retail", 240),
-    240,
-  );
-  const productFit = englishReference(customer.recommended_line, "our premium evening dress collection", 280);
   const requestedPurpose = englishReference(purpose, "", 500);
   const latestSubject = englishReference(latestReceived?.subject, "", 500);
 
   const subject = latestReceived && latestSubject
     ? `Re: ${latestSubject.replace(/^re:\s*/i, "")}`
     : hasCommunication
-      ? `New evening dress styles for ${company}`
-      : `Evening dress collection for ${company}`;
+      ? `Occasionwear development for ${company}`
+      : profile.archetype === "brand"
+        ? `Collection development for ${company}`
+        : `Occasionwear opportunity for ${company}`;
 
   const opening = latestReceived
-    ? `Thank you for your earlier message regarding “${latestSubject || "our possible cooperation"}”. I wanted to continue from our previous conversation.`
+    ? `Thank you for your earlier message about ${latestSubject || "our possible cooperation"}. I wanted to continue from that conversation.`
     : hasCommunication
-      ? "I wanted to continue our earlier conversation and share something relevant to your business."
-      : `I came across ${company} and noticed your focus on ${positioning}.`;
+      ? `I wanted to continue our earlier conversation with something relevant to ${company}.`
+      : profile.archetype === "unknown"
+        ? `I am contacting ${company} to understand whether you work with external production partners for occasionwear.`
+        : `${company}'s position as a ${profile.archetypeLabel} appears relevant to our work in ${profile.productOpportunity}.`;
 
   const purposeLine = requestedPurpose
     ? `For this note, I would like to discuss ${requestedPurpose}.`
-    : "May I ask whether you are currently reviewing new evening dress suppliers or planning an upcoming collection?";
+    : profile.archetype === "brand"
+      ? "Are you currently developing an upcoming occasionwear collection or reviewing additional production capabilities?"
+      : profile.archetype === "importer_distributor"
+        ? "Are you currently reviewing new occasionwear lines or additional production partners for an upcoming buying cycle?"
+        : "Would a focused product discussion around your current occasionwear assortment be useful?";
+
+  const nextStep = profile.archetype === "brand"
+    ? "If relevant, I can share a concise introduction to our development capabilities, suitable product examples and production approach."
+    : profile.archetype === "importer_distributor"
+      ? "If relevant, I can prepare a focused collection overview with commercial positioning and production lead-time information."
+      : "If relevant, I can prepare a focused selection and explain how it could complement your current occasionwear assortment.";
 
   const body = [
     "Dear Team,",
     "",
     opening,
     "",
-    `Based on your market positioning, ${productFit} may be particularly relevant. We can support selected styles, flexible order quantities and stable production for international buyers.`,
+    `The most relevant opportunity appears to be ${profile.productOpportunity}. We ${profile.valueProposition}.`,
     purposeLine,
     "",
-    "If useful, I can prepare a concise selection with wholesale prices and lead-time details tailored to your market.",
+    nextStep,
   ].join("\n");
 
   return { subject, body: appendSalesSignature(body), source: "template" as const };

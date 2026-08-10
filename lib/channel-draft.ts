@@ -1,4 +1,10 @@
 import type { Customer, FollowUp } from "@/types/database";
+import type { GmailMessageContext } from "@/lib/gmail";
+import type { CustomerSignalContext } from "@/lib/email-draft";
+import {
+  buildCustomerMessagingProfile,
+  roleSpecificWritingRules,
+} from "@/lib/customer-messaging";
 
 export const manualChannels = ["WhatsApp", "Telegram", "Phone", "LinkedIn"] as const;
 export type ManualChannel = typeof manualChannels[number];
@@ -19,33 +25,53 @@ export function isManualChannel(value: string): value is ManualChannel {
 }
 
 export function channelDraftFallback(customer: Customer, channel: ManualChannel, purpose: string) {
+  const profile = buildCustomerMessagingProfile(customer);
   const company = safeEnglish(customer.company, "your team", 200);
-  const positioning = safeEnglish(customer.customer_type, "fashion retail", 240);
-  const product = safeEnglish(customer.recommended_line, "our premium evening dress collection", 300);
   const goal = safeEnglish(purpose, "", 500);
+  const relationshipQuestion = profile.archetype === "brand"
+    ? "Are you currently developing an upcoming occasionwear collection or reviewing additional production capabilities?"
+    : profile.archetype === "importer_distributor"
+      ? "Are you currently reviewing new occasionwear lines or production partners for an upcoming buying cycle?"
+      : profile.archetype === "unknown"
+        ? "May I ask whether you develop or source occasionwear with external production partners?"
+        : "Would a focused discussion about your current occasionwear assortment be useful?";
 
   if (channel === "Phone") {
     return [
-      `Opening: Hello, this is Sam Deng from Guangzhou Bingfeng Information Technology. May I speak with the person responsible for evening dress purchasing at ${company}?`,
+      `Opening: Hello, this is Sam Deng from Guangzhou Bingfeng Information Technology. May I speak with the person responsible for occasionwear product development or sourcing at ${company}?`,
       "",
-      `Reason for calling: We work with international boutiques and buyers on premium evening dresses. Based on your focus on ${positioning}, ${product} may be relevant to your market.`,
+      `Reason for calling: ${company} is recorded as a ${profile.archetypeLabel}. The most relevant opportunity appears to be ${profile.productOpportunity}. We ${profile.valueProposition}.`,
       "",
-      "Questions:",
-      "1. Are you currently reviewing new evening dress suppliers or planning an upcoming collection?",
-      "2. Which price range, order quantity and delivery window are most relevant?",
-      "3. Would it be useful if I sent a short selection with wholesale prices and lead times?",
+      "Discovery questions:",
+      `1. ${relationshipQuestion}`,
+      "2. Which product categories, quality expectations and delivery windows are most important for your next collection?",
+      "3. What would you need to see from a new production partner before evaluating cooperation?",
+      ...(profile.archetype === "importer_distributor"
+        ? ["4. Which commercial positioning and order structure are most relevant to your market?"]
+        : []),
       ...(goal ? ["", `Additional objective: ${goal}`] : []),
+      "",
+      "Next step: Offer to send only the most relevant product and production information discussed during the call.",
     ].join("\n");
   }
 
-  const opening = channel === "LinkedIn" ? `Hello ${company} team,` : `Hello, this is Sam Deng. I came across ${company} and noticed your focus on ${positioning}.`;
+  const greeting = channel === "LinkedIn" ? `Hello ${company} team,` : "Hello,";
+  const opening = profile.archetype === "unknown"
+    ? `I am contacting ${company} to understand whether you work with external production partners for occasionwear.`
+    : `${company}'s position as a ${profile.archetypeLabel} appears relevant to our work in ${profile.productOpportunity}.`;
+  const request = goal ? `I would particularly like to discuss ${goal}.` : relationshipQuestion;
+  const nextStep = profile.archetype === "brand"
+    ? "If relevant, I can share a brief introduction to our development capabilities and suitable product examples."
+    : "If relevant, I can share a focused selection and explain how it could complement your current business.";
+
   return [
+    greeting,
+    "",
     opening,
+    `We ${profile.valueProposition}.`,
+    request,
     "",
-    `${product} may be relevant to your market. We support international boutiques and buyers with selected evening dress styles, flexible order quantities and stable production.`,
-    goal ? `I am reaching out regarding ${goal}.` : "Are you currently reviewing new suppliers or planning an upcoming collection?",
-    "",
-    "If useful, I can share a concise selection with wholesale prices and lead-time details.",
+    nextStep,
     "",
     "Regards,",
     "Sam Deng",
@@ -53,21 +79,54 @@ export function channelDraftFallback(customer: Customer, channel: ManualChannel,
   ].join("\n");
 }
 
-export function buildManualChannelContext(customer: Customer, followUps: FollowUp[], channel: ManualChannel, purpose: string) {
+export function buildManualChannelContext(
+  customer: Customer,
+  followUps: FollowUp[],
+  channel: ManualChannel,
+  purpose: string,
+  messages: GmailMessageContext[] = [],
+  signals: CustomerSignalContext[] = [],
+) {
+  const profile = buildCustomerMessagingProfile(customer);
   const history = followUps.slice(0, 12).map((item, index) =>
     `${index + 1}. ${item.happened_at} | ${item.channel} | ${clean(item.summary, 700)} | ${clean(item.outcome, 200)}`
   ).join("\n") || "None";
+  const emailHistory = messages.slice(-8).map((item, index) => [
+    `${index + 1}. ${item.date} | ${item.direction.toUpperCase()} | ${clean(item.subject, 400) || "No subject"}`,
+    clean(item.content || item.snippet, 1800) || "No readable content",
+  ].join("\n")).join("\n\n") || "None";
+  const signalHistory = signals.slice(0, 5).map((item, index) => [
+    `${index + 1}. ${clean(item.title, 400)} | relevance ${item.relevance_score}`,
+    clean(item.summary, 900) || "No summary",
+  ].join("\n")).join("\n\n") || "None";
+
   return [
     `Channel: ${channel}`,
     `Company: ${clean(customer.company, 250)}`,
+    `Website: ${clean(customer.website, 500) || "Unknown"}`,
     `Location: ${[customer.city, customer.country].filter(Boolean).join(", ") || "Unknown"}`,
+    "",
+    "RESOLVED CUSTOMER COMMUNICATION PROFILE",
+    roleSpecificWritingRules(profile),
+    `Verified background summary: ${profile.verifiedBackground}`,
+    "",
+    "SOURCE CUSTOMER DATA",
     `Customer type: ${clean(customer.customer_type, 400) || "Unknown"}`,
-    `Product fit: ${clean(customer.recommended_line, 800) || clean(customer.product_category, 300)}`,
+    `Product category: ${clean(customer.product_category, 400) || "Unknown"}`,
+    `Recommended product information: ${clean(customer.recommended_line, 1000) || "None"}`,
+    `Business evidence: ${clean(customer.evidence, 1800) || "None"}`,
+    `Buyer or commercial value notes: ${clean(customer.buyer_value, 800) || "None"}`,
     `Customer notes: ${clean(customer.notes, 1200) || "None"}`,
-    `Business objective: ${clean(purpose, 700) || "Start or continue a useful conversation about the customer's current buying plan"}`,
+    `Business objective: ${clean(purpose, 700) || "Start or continue a useful, low-pressure conversation"}`,
     "",
     "RECENT CRM HISTORY",
     history,
+    "",
+    "MATCHED EMAIL HISTORY",
+    emailHistory,
+    "",
+    "RECENT BUSINESS SIGNALS",
+    signalHistory,
   ].join("\n");
 }
 
