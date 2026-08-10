@@ -4,6 +4,7 @@ import { coldCadenceDays } from "@/lib/follow-up-priority";
 import { buildRawEmail, sendGmailMessage } from "@/lib/gmail";
 import { getSharedGmailAccount } from "@/lib/shared-gmail";
 import { createClient } from "@/lib/supabase/server";
+import { buildCustomerMessagingProfile, outboundCopyIssues } from "@/lib/customer-messaging";
 import type { Customer } from "@/types/database";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -35,6 +36,13 @@ export async function POST(request: Request) {
     const customer = customerData as Customer;
     if (!customer.contact_email || customer.contact_email.trim().toLowerCase() !== to.toLowerCase()) {
       return NextResponse.json({ error: "收件人必须是该客户在线索中登记的联系邮箱。" }, { status: 400 });
+    }
+    const copyIssues = outboundCopyIssues(`${subject}\n${body}`, buildCustomerMessagingProfile(customer));
+    if (copyIssues.length) {
+      return NextResponse.json({
+        error: `发送前质检未通过：${copyIssues.join("；")}。请重新生成或修改后再发送。`,
+        quality_issues: copyIssues,
+      }, { status: 400 });
     }
 
     const file = formData.get("attachment");
