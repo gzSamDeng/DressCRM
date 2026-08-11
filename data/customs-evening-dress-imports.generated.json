@@ -5,289 +5,10 @@
     "raw_rows": 550,
     "unique_rows": 291,
     "duplicate_rows_removed": 259,
-    "candidate_companies": 39,
-    "generated_at": "2026-08-10T14:13:12.304Z"
+    "candidate_companies": 31,
+    "generated_at": "2026-08-11T16:07:46.574Z"
   },
   "leads": [
-    {
-      "source_key": "customs-evening-dress:cornerstone-diversified-goods",
-      "company": "CORNERSTONE DIVERSIFIED GOODS",
-      "country": "菲律宾",
-      "shipment_count": 16,
-      "first_import_date": "2023-11-20",
-      "latest_import_date": "2026-02-26",
-      "hs_codes": [
-        "64029990000",
-        "64039990000",
-        "64051000000",
-        "64059000000",
-        "64035100000",
-        "64041190000"
-      ],
-      "suppliers": [
-        "GZ GLORY IMPORT&EXPORT TRADING CO LTD",
-        "GUANGZHOU ETOPA TRADING CO. LTD",
-        "GZ GLORY IMPORT & EXPORT TRADING CO",
-        "GZ GLORY IMPORT AND EXPORT TRADING CO., LTD",
-        "GZ GLORY IMPORT & EXPORT TRADING",
-        "GZ GLORY IMPORT & EXPORT TRADING CO LTD",
-        "GZ GLORY IMPORT&EXPORT TRADING",
-        "GZ GLORY IMPORT&EXPORT TRADING CO",
-        "GZ GLORY EXPORT TRADING LTD"
-      ],
-      "product_descriptions": [
-        "Footwear with outer soles and uppers of rubber or plastics (excl. covering the ankle or with upper straps or thongs assembled to the sole by means of plugs, waterproof footwear of heading 6401, sports footwear, orthopaedic footwear and toy footwear) : Oth；MENS CASUAL PENNY LOAFERS(AVENUE) MENS FORMAL DRESS SHOES(MACO) MENS FORMAL UNIFORM(MACO) LADIES UNIFORM(AVENUE)",
-        "MENS FORMAL DRESS SHOES (MACO)(64 CARTONS)(768 PCS)",
-        "MENS FORMAL DRESS SHOES/MENS FORMAL UNIFORM SHOES/MENS CASUAL SANDALS (MACO, AVENUE)(154 CARTONS)(1848 PCS)",
-        "MENS FORMAL DRESS SHOES (MACO) MENS FORMAL UNIFORM SHOES (MACO) MENS CASUAL SANDALS (AVENUE)",
-        "MENS FORMAL DRESS SHOES (MACO)(115 CARTONS)(1380 PCS)",
-        "MENS FORMAL DRESS SHOES (MACO)",
-        "FORMAL DRESS SHOES",
-        "FORMAL DRESS SHOES (BLUE CAMP)(80 CARTONS)(960 PCS)"
-      ],
-      "records": [
-        {
-          "import_date": "2026-02-26",
-          "importer_country": "菲律宾",
-          "importer_name": "CORNERSTONE DIVERSIFIED GOODS",
-          "seller_country": "中国",
-          "supplier_name": "GZ GLORY IMPORT&EXPORT TRADING CO LTD",
-          "origin_country": "-",
-          "hs_code": "64029990000",
-          "product_description": "Footwear with outer soles and uppers of rubber or plastics (excl. covering the ankle or with upper straps or thongs assembled to the sole by means of plugs, waterproof footwear of heading 6401, sports footwear, orthopaedic footwear and toy footwear) : Oth；MENS CASUAL PENNY LOAFERS(AVENUE) MENS FORMAL DRESS SHOES(MACO) MENS FORMAL UNIFORM(MACO) LADIES UNIFORM(AVENUE)",
-          "trade_type": "进口数据",
-          "quantity_raw": "290Number of pairs",
-          "amount_raw": "25225USD",
-          "weight_raw": "3.345t",
-          "record_fingerprint": "836e27e5644a7d3afb5641a6c172ae998f313ea21c49ace1a267a1cabb809e32"
-        },
-        {
-          "import_date": "2025-11-26",
-          "importer_country": "菲律宾",
-          "importer_name": "CORNERSTONE DIVERSIFIED GOODS",
-          "seller_country": "中国",
-          "supplier_name": "GUANGZHOU ETOPA TRADING CO. LTD",
-          "origin_country": "中国",
-          "hs_code": "64039990000",
-          "product_description": "MENS FORMAL DRESS SHOES (MACO)(64 CARTONS)(768 PCS)",
-          "trade_type": "进口数据",
-          "quantity_raw": "768NUMBER OF PAIRS",
-          "amount_raw": "8367.92USD",
-          "weight_raw": "704",
-          "record_fingerprint": "c01ae3eb838a1a2af250839a2148b95f0b0888ef6244df38ea7bb72364cb5740"
-        },
-        {
-          "import_date": "2025-09-12",
-          "importer_country": "菲律宾",
-          "importer_name": "CORNERSTONE DIVERSIFIED GOODS",
-          "seller_country": "中国",
-          "supplier_name": "GZ GLORY IMPORT & EXPORT TRADING CO",
-          "origin_country": "中国",
-          "hs_code": "64039990000",
-          "product_description": "MENS FORMAL DRESS SHOES/MENS FORMAL UNIFORM SHOES/MENS CASUAL SANDALS (MACO, AVENUE)(154 CARTONS)(1848 PCS)",
-          "trade_type": "进口数据",
-          "quantity_raw": "1848NUMBER OF PAIRS",
-          "amount_raw": "11392.34USD",
-          "weight_raw": "2464",
-          "record_fingerprint": "08f03f076c53763e3f1cdc313fad755932758f5463431129bfb46beafbae54f0"
-        },
-        {
-          "import_date": "2025-09-03",
-          "importer_country": "菲律宾",
-          "importer_name": "CORNERSTONE DIVERSIFIED GOODS",
-          "seller_country": "中国",
-          "supplier_name": "GZ GLORY IMPORT AND EXPORT TRADING CO., LTD",
-          "origin_country": "中国",
-          "hs_code": "64029990000",
-          "product_description": "MENS FORMAL DRESS SHOES (MACO) MENS FORMAL UNIFORM SHOES (MACO) MENS CASUAL SANDALS (AVENUE)",
-          "trade_type": "进口数据",
-          "quantity_raw": "347NUMBER OF PAIRS",
-          "amount_raw": "25728.11USD",
-          "weight_raw": "5205",
-          "record_fingerprint": "b086299b10b826d8126f45aca44b848b65b22cbfa1ccc15010837befead5b8a0"
-        },
-        {
-          "import_date": "2025-02-12",
-          "importer_country": "菲律宾",
-          "importer_name": "CORNERSTONE DIVERSIFIED GOODS TRADING INC",
-          "seller_country": "中国",
-          "supplier_name": "GZ GLORY IMPORT & EXPORT TRADING",
-          "origin_country": "中国",
-          "hs_code": "64029990000",
-          "product_description": "MENS FORMAL DRESS SHOES (MACO)(115 CARTONS)(1380 PCS)",
-          "trade_type": "进口数据",
-          "quantity_raw": "1380NUMBER OF PAIRS",
-          "amount_raw": "10708.9USD",
-          "weight_raw": "1044",
-          "record_fingerprint": "19905082a36014df295a62c2afaa70189436f9de4fc5edac7591264636faec13"
-        },
-        {
-          "import_date": "2025-02-03",
-          "importer_country": "菲律宾",
-          "importer_name": "CORNERSTONE DIVERSIFIED GOODS TRADING INC",
-          "seller_country": "中国",
-          "supplier_name": "GZ GLORY IMPORT & EXPORT TRADING CO LTD",
-          "origin_country": "中国",
-          "hs_code": "64029990000",
-          "product_description": "MENS FORMAL DRESS SHOES (MACO)",
-          "trade_type": "进口数据",
-          "quantity_raw": "92NUMBER OF PAIRS",
-          "amount_raw": "9534.7USD",
-          "weight_raw": "768",
-          "record_fingerprint": "2b300a45563e2901866269b87ab43a062e975667ffea501b249ed0b044ae5df5"
-        },
-        {
-          "import_date": "2025-02-03",
-          "importer_country": "菲律宾",
-          "importer_name": "CORNERSTONE DIVERSIFIED GOODS TRADING INC",
-          "seller_country": "中国",
-          "supplier_name": "GZ GLORY IMPORT & EXPORT TRADING CO LTD",
-          "origin_country": "中国",
-          "hs_code": "64051000000",
-          "product_description": "FORMAL DRESS SHOES",
-          "trade_type": "进口数据",
-          "quantity_raw": "46NUMBER OF PAIRS",
-          "amount_raw": "4729.9USD",
-          "weight_raw": "384",
-          "record_fingerprint": "6001d83be23ca15319461856bf896ef6961bda271f2781ebf1167053c8764e9a"
-        },
-        {
-          "import_date": "2024-12-06",
-          "importer_country": "菲律宾",
-          "importer_name": "CORNERSTONE DIVERSIFIED GOODS",
-          "seller_country": "中国",
-          "supplier_name": "GZ GLORY IMPORT&EXPORT TRADING",
-          "origin_country": "-",
-          "hs_code": "64029990000",
-          "product_description": "FORMAL DRESS SHOES (BLUE CAMP)(80 CARTONS)(960 PCS)",
-          "trade_type": "进口数据",
-          "quantity_raw": "960Number of pairs",
-          "amount_raw": "5520USD",
-          "weight_raw": "0.7776t",
-          "record_fingerprint": "39d88c0229d3a4770cff654d2b9bb3d6fdd494d7798dbfd82ad05502e7c7c51f"
-        },
-        {
-          "import_date": "2024-11-18",
-          "importer_country": "菲律宾",
-          "importer_name": "CORNERSTONE DIVERSIFIED GOODS",
-          "seller_country": "中国",
-          "supplier_name": "GZ GLORY IMPORT&EXPORT TRADING CO LTD",
-          "origin_country": "-",
-          "hs_code": "64051000000",
-          "product_description": "FORMAL DRESS SHOES (BLUE CAMP)",
-          "trade_type": "进口数据",
-          "quantity_raw": "120Number of pairs",
-          "amount_raw": "8258USD",
-          "weight_raw": "0.939t",
-          "record_fingerprint": "1e760744dc4595f6bea3b960b11d02582179a236cee153ff14134eff560b2644"
-        },
-        {
-          "import_date": "2024-11-14",
-          "importer_country": "菲律宾",
-          "importer_name": "CORNERSTONE DIVERSIFIED GOODS",
-          "seller_country": "中国",
-          "supplier_name": "GZ GLORY IMPORT&EXPORT TRADING CO LTD",
-          "origin_country": "-",
-          "hs_code": "64059000000",
-          "product_description": "STC FORMAL DRESS SHOES BOOTS ( MACO) 480 PCS",
-          "trade_type": "进口数据",
-          "quantity_raw": "480Number of pairs",
-          "amount_raw": "4843USD",
-          "weight_raw": "0.3773t",
-          "record_fingerprint": "e8b6e34ced568f1baf25aefc6b3d15698a89e9d2d9dc0efe2793bcc3e30a062a"
-        },
-        {
-          "import_date": "2024-11-12",
-          "importer_country": "菲律宾",
-          "importer_name": "CORNERSTONE DIVERSIFIED GOODS",
-          "seller_country": "中国",
-          "supplier_name": "GZ GLORY IMPORT&EXPORT TRADING CO",
-          "origin_country": "-",
-          "hs_code": "64029990000",
-          "product_description": "MENS FORMAL DRESS SHOES SLIP-ON (MACO) (1416 PCS)",
-          "trade_type": "进口数据",
-          "quantity_raw": "1416Number of pairs",
-          "amount_raw": "10110USD",
-          "weight_raw": "1.2906t",
-          "record_fingerprint": "68359dc5482d2eb5553d8eddea52f3785a9779616e483d45065bcc43a7f194f8"
-        },
-        {
-          "import_date": "2024-11-04",
-          "importer_country": "菲律宾",
-          "importer_name": "CORNERSTONE DIVERSIFIED GOODS",
-          "seller_country": "中国",
-          "supplier_name": "GZ GLORY IMPORT&EXPORT TRADING CO LTD",
-          "origin_country": "-",
-          "hs_code": "64051000000",
-          "product_description": "FORMAL DRESS SHOES SLIP-ON (MA.CO)",
-          "trade_type": "进口数据",
-          "quantity_raw": "162Number of pairs",
-          "amount_raw": "14094USD",
-          "weight_raw": "2.187t",
-          "record_fingerprint": "6ddce8755e0ff67918b3ff67fba73288749104a30723f317c115b106b87fb768"
-        },
-        {
-          "import_date": "2024-10-31",
-          "importer_country": "菲律宾",
-          "importer_name": "CORNERSTONE DIVERSIFIED GOODS",
-          "seller_country": "中国",
-          "supplier_name": "GZ GLORY IMPORT&EXPORT TRADING CO LTD",
-          "origin_country": "-",
-          "hs_code": "64029990000",
-          "product_description": "STC MENS FORMAL DRESS SHOES (MACO) 720 PCS",
-          "trade_type": "进口数据",
-          "quantity_raw": "720Number of pairs",
-          "amount_raw": "725.81USD",
-          "weight_raw": "0.7644t",
-          "record_fingerprint": "fb332c93cbcddd0e498302dc1d83902484362c1ec53e12cfa1555f840985f582"
-        },
-        {
-          "import_date": "2024-10-23",
-          "importer_country": "菲律宾",
-          "importer_name": "CORNERSTONE DIVERSIFIED GOODS",
-          "seller_country": "中国",
-          "supplier_name": "GZ GLORY IMPORT&EXPORT TRADING CO LTD",
-          "origin_country": "-",
-          "hs_code": "64035100000",
-          "product_description": "FORMAL DRESS SHOES BOOTS (MACO)",
-          "trade_type": "进口数据",
-          "quantity_raw": "50Number of pairs",
-          "amount_raw": "6045USD",
-          "weight_raw": "0.778t",
-          "record_fingerprint": "492644ccfbea0835572b1ac3039359f699fd51ca704e3e80111485c1694eb5f1"
-        },
-        {
-          "import_date": "2024-10-02",
-          "importer_country": "菲律宾",
-          "importer_name": "CORNERSTONE DIVERSIFIED GOODS",
-          "seller_country": "中国",
-          "supplier_name": "GZ GLORY IMPORT&EXPORT TRADING CO LTD",
-          "origin_country": "-",
-          "hs_code": "64051000000",
-          "product_description": "MENS FORMAL DRESS SHOES SLIP-ON",
-          "trade_type": "进口数据",
-          "quantity_raw": "100Number of pairs",
-          "amount_raw": "5657USD",
-          "weight_raw": "1.3t",
-          "record_fingerprint": "38d3e3549d2c8dbce1d1e76cf906bc44c4aab1593007006035adefce17f5fa53"
-        },
-        {
-          "import_date": "2023-11-20",
-          "importer_country": "菲律宾",
-          "importer_name": "CORNERSTONE DIVERSIFIED GOODS TRDG",
-          "seller_country": "中国",
-          "supplier_name": "GZ GLORY EXPORT TRADING LTD",
-          "origin_country": "-",
-          "hs_code": "64041190000",
-          "product_description": "Sports footwear, incl. tennis shoes, basketball shoes, gym shoes, training shoes and the like, with outer soles of rubber or plastics and uppers of textile materials : Other FORMAL DRESS SHOES SLIP-ON (MACO)",
-          "trade_type": "进口数据",
-          "quantity_raw": "150Number of pairs",
-          "amount_raw": "12083USD",
-          "weight_raw": "1.4t",
-          "record_fingerprint": "194cf806a4fb2460f0e555a0f33caab22dacd365ee79f1d0e3bebb9eca64b9ea"
-        }
-      ]
-    },
     {
       "source_key": "customs-evening-dress:bella-princess-inc",
       "company": "BELLA PRINCESS INC",
@@ -861,75 +582,6 @@
       ]
     },
     {
-      "source_key": "customs-evening-dress:ysd-logistics-ltd",
-      "company": "YSD LOGISTICS LTD",
-      "country": "英国",
-      "shipment_count": 3,
-      "first_import_date": "2024-04-09",
-      "latest_import_date": "2024-09-28",
-      "hs_codes": [
-        "610453",
-        "830629",
-        "950590"
-      ],
-      "suppliers": [
-        "SHENZHEN YUNSHIDA ELECTRONIC TECHNOLOGY CO LTD",
-        "EULER TIMES SUPPLY CHAIN (SHENZHEN) CO LTD"
-      ],
-      "product_descriptions": [
-        "Knitted or crocheted skirts and divided skirts of synthetic fibres；PROM dress to Dress up on a ball",
-        "To Decorate with Decorative card with coded lock pack the Lock with the code. Photo frame hook the Hook in a frame of Mini saw blade the Small file. PROM dress to Dress up on a ball",
-        "Other festive, carnival or other entertainment articles, including conjuring tricks and novelty jokes；SQUARE BAGS, SNAP RINGS, PROM DRESS, HOLIDAY DECORATION."
-      ],
-      "records": [
-        {
-          "import_date": "2024-09-28",
-          "importer_country": "英国",
-          "importer_name": "YSD LOGISTICS LTD",
-          "seller_country": "中国",
-          "supplier_name": "SHENZHEN YUNSHIDA ELECTRONIC TECHNOLOGY CO LTD",
-          "origin_country": "-",
-          "hs_code": "610453",
-          "product_description": "Knitted or crocheted skirts and divided skirts of synthetic fibres；PROM dress to Dress up on a ball",
-          "trade_type": "进口数据",
-          "quantity_raw": "未公开",
-          "amount_raw": "784.5241USD",
-          "weight_raw": "0.0788t",
-          "record_fingerprint": "bedb7b5d39d250a9a2991d7d12e407a346c067324c751170fc8e9d2b45c38d01"
-        },
-        {
-          "import_date": "2024-09-26",
-          "importer_country": "英国",
-          "importer_name": "YSD LOGISTICS LTD",
-          "seller_country": "中国",
-          "supplier_name": "SHENZHEN YUNSHIDA ELECTRONIC TECHNOLOGY CO LTD",
-          "origin_country": "-",
-          "hs_code": "830629",
-          "product_description": "To Decorate with Decorative card with coded lock pack the Lock with the code. Photo frame hook the Hook in a frame of Mini saw blade the Small file. PROM dress to Dress up on a ball",
-          "trade_type": "进口数据",
-          "quantity_raw": "未公开",
-          "amount_raw": "1516.4413USD",
-          "weight_raw": "0.15366t",
-          "record_fingerprint": "12950380f6bb9616a7281fb373cb834c662acb2b1ee0eccce9458e297c146c54"
-        },
-        {
-          "import_date": "2024-04-09",
-          "importer_country": "英国",
-          "importer_name": "YSD LOGISTICS LTD",
-          "seller_country": "中国",
-          "supplier_name": "EULER TIMES SUPPLY CHAIN (SHENZHEN) CO LTD",
-          "origin_country": "-",
-          "hs_code": "950590",
-          "product_description": "Other festive, carnival or other entertainment articles, including conjuring tricks and novelty jokes；SQUARE BAGS, SNAP RINGS, PROM DRESS, HOLIDAY DECORATION.",
-          "trade_type": "进口数据",
-          "quantity_raw": "未公开",
-          "amount_raw": "1016.4821USD",
-          "weight_raw": "0.05431t",
-          "record_fingerprint": "f89311b74a40af5f5df61394a79bd7fdc4aafcf7ddeba8329ef7215c5a2ffe93"
-        }
-      ]
-    },
-    {
       "source_key": "customs-evening-dress:weissman-s-theatrical-supplies-inc",
       "company": "WEISSMAN''S THEATRICAL SUPPLIES INC",
       "country": "美国",
@@ -1271,56 +923,6 @@
       ]
     },
     {
-      "source_key": "customs-evening-dress:al-baraka-apparel",
-      "company": "AL BARAKA APPAREL",
-      "country": "巴基斯坦",
-      "shipment_count": 2,
-      "first_import_date": "2023-11-04",
-      "latest_import_date": "2023-11-04",
-      "hs_codes": [
-        "61034200"
-      ],
-      "suppliers": [
-        "GUANGZHOU MAX UNITED TRADING LTD"
-      ],
-      "product_descriptions": [
-        "Men''s or boys'' trousers, bib and brace overalls, breeches and shorts of cotton, knitted or ... 5. MENS’ FORMAL DRESS PANT ASSORTED COLOUR & DESIGN QUANTITY 756 PIECES",
-        "Men''s or boys'' trousers, bib and brace overalls, breeches and shorts of cotton, knitted or ... 6. BOYS FORMAL DRESS PANT ASSORTED COLOUR & DESIGN QUANTITY 372 PIECES"
-      ],
-      "records": [
-        {
-          "import_date": "2023-11-04",
-          "importer_country": "巴基斯坦",
-          "importer_name": "AL BARAKA APPAREL",
-          "seller_country": "中国",
-          "supplier_name": "GUANGZHOU MAX UNITED TRADING LTD",
-          "origin_country": "-",
-          "hs_code": "61034200",
-          "product_description": "Men''s or boys'' trousers, bib and brace overalls, breeches and shorts of cotton, knitted or ... 5. MENS’ FORMAL DRESS PANT ASSORTED COLOUR & DESIGN QUANTITY 756 PIECES",
-          "trade_type": "进口数据",
-          "quantity_raw": "756u",
-          "amount_raw": "3112.23USD",
-          "weight_raw": "未公开",
-          "record_fingerprint": "cdeb1c4537012ba0466545173d9c46ab96948f4ecee453ff4e760282bd9a3630"
-        },
-        {
-          "import_date": "2023-11-04",
-          "importer_country": "巴基斯坦",
-          "importer_name": "AL BARAKA APPAREL",
-          "seller_country": "中国",
-          "supplier_name": "GUANGZHOU MAX UNITED TRADING LTD",
-          "origin_country": "-",
-          "hs_code": "61034200",
-          "product_description": "Men''s or boys'' trousers, bib and brace overalls, breeches and shorts of cotton, knitted or ... 6. BOYS FORMAL DRESS PANT ASSORTED COLOUR & DESIGN QUANTITY 372 PIECES",
-          "trade_type": "进口数据",
-          "quantity_raw": "372u",
-          "amount_raw": "744.91USD",
-          "weight_raw": "未公开",
-          "record_fingerprint": "d44ab175dd76a26e66a997dab0408aafc70d030dbe7b9a4e5ad91dbdca9866ad"
-        }
-      ]
-    },
-    {
       "source_key": "customs-evening-dress:asos-us-sales-llc",
       "company": "ASOS US SALES LLC",
       "country": "美国",
@@ -1556,74 +1158,6 @@
       ]
     },
     {
-      "source_key": "customs-evening-dress:servicio-de-importacion-365-sa-d",
-      "company": "SERVICIO DE IMPORTACION 365 SA D",
-      "country": "美国",
-      "shipment_count": 1,
-      "first_import_date": "2026-02-09",
-      "latest_import_date": "2026-02-09",
-      "hs_codes": [
-        "940320"
-      ],
-      "suppliers": [
-        "XIAMEN SHANXUAN ECOMMERCE CO L"
-      ],
-      "product_descriptions": [
-        "Other metal furniture；FALSE EYELASHES WOMEN''S YOGA JUMPSUIT BOOKC ASE HOME DECORATION(KEY CHAIN EVENING GOWN HANDBAG BACKPACK SHOE INSERT)"
-      ],
-      "records": [
-        {
-          "import_date": "2026-02-09",
-          "importer_country": "美国",
-          "importer_name": "SERVICIO DE IMPORTACION 365 SA D",
-          "seller_country": "中国",
-          "supplier_name": "XIAMEN SHANXUAN ECOMMERCE CO L",
-          "origin_country": "-",
-          "hs_code": "940320",
-          "product_description": "Other metal furniture；FALSE EYELASHES WOMEN''S YOGA JUMPSUIT BOOKC ASE HOME DECORATION(KEY CHAIN EVENING GOWN HANDBAG BACKPACK SHOE INSERT)",
-          "trade_type": "进口数据",
-          "quantity_raw": "1072CTN",
-          "amount_raw": "未公开",
-          "weight_raw": "17.17t",
-          "record_fingerprint": "dcaa438c2e2545879c4912d41190f6abcdce0182682fbcb7c4223fca41d166a3"
-        }
-      ]
-    },
-    {
-      "source_key": "customs-evening-dress:great-eastern-usa-corp",
-      "company": "GREAT EASTERN USA CORP",
-      "country": "美国",
-      "shipment_count": 1,
-      "first_import_date": "2026-01-28",
-      "latest_import_date": "2026-01-28",
-      "hs_codes": [
-        "940171"
-      ],
-      "suppliers": [
-        "GUANGZHOU CRYO SYSTEMS REFRIGERATIO"
-      ],
-      "product_descriptions": [
-        "PLASTIC KNIFE ELECTRIC STACKER ELECTRIC PALLE T TRUCK FORMAL DRESS MEAT BAND SAW BLADE VACU UM PACKAGING MACHINE PANELS PILLAR DOOR BLOCK DOOR PANEL WORK UNIFORM BRAND MATERIALS EXHI BITION MATERIALS PLASTIC FLAT BAG METAL KITCH ENWARE"
-      ],
-      "records": [
-        {
-          "import_date": "2026-01-28",
-          "importer_country": "美国",
-          "importer_name": "GREAT EASTERN USA CORP",
-          "seller_country": "中国",
-          "supplier_name": "GUANGZHOU CRYO SYSTEMS REFRIGERATIO",
-          "origin_country": "-",
-          "hs_code": "940171",
-          "product_description": "PLASTIC KNIFE ELECTRIC STACKER ELECTRIC PALLE T TRUCK FORMAL DRESS MEAT BAND SAW BLADE VACU UM PACKAGING MACHINE PANELS PILLAR DOOR BLOCK DOOR PANEL WORK UNIFORM BRAND MATERIALS EXHI BITION MATERIALS PLASTIC FLAT BAG METAL KITCH ENWARE",
-          "trade_type": "进口数据",
-          "quantity_raw": "561PKG",
-          "amount_raw": "未公开",
-          "weight_raw": "11.92t",
-          "record_fingerprint": "d0936fe198f560c96a9beae3e99f91b5ab1d9e21303ad9a6f730a943a422094e"
-        }
-      ]
-    },
-    {
       "source_key": "customs-evening-dress:tam-phat-logistics-company-ltd",
       "company": "TAM PHAT LOGISTICS COMPANY LTD",
       "country": "越南",
@@ -1654,74 +1188,6 @@
           "amount_raw": "180.5USD",
           "weight_raw": "未公开",
           "record_fingerprint": "9aabae61ff31105aa73d53167caca5d44b4e33294064112893b4da5166ee366a"
-        }
-      ]
-    },
-    {
-      "source_key": "customs-evening-dress:c-ng-ty-tnhh-d-n-nh-c-giao-h-ng-s-i-g-n",
-      "company": "CÔNG TY TNHH DÀN NHẠC GIAO HƯỞNG SÀI GÒN",
-      "country": "越南",
-      "shipment_count": 1,
-      "first_import_date": "2025-11-25",
-      "latest_import_date": "2025-11-25",
-      "hs_codes": [
-        "63090000"
-      ],
-      "suppliers": [
-        "SHANGHAI DYNASTY IMPORT AND EXPORT CO.,LTD"
-      ],
-      "product_descriptions": [
-        "Worn clothing and other worn articles；Evening dress dance: long skirt, grey decorative motifs (silk). Costumes used"
-      ],
-      "records": [
-        {
-          "import_date": "2025-11-25",
-          "importer_country": "越南",
-          "importer_name": "CÔNG TY TNHH DÀN NHẠC GIAO HƯỞNG SÀI GÒN",
-          "seller_country": "中国",
-          "supplier_name": "SHANGHAI DYNASTY IMPORT AND EXPORT CO.,LTD",
-          "origin_country": "俄罗斯",
-          "hs_code": "63090000",
-          "product_description": "Worn clothing and other worn articles；Evening dress dance: long skirt, grey decorative motifs (silk). Costumes used",
-          "trade_type": "进口数据",
-          "quantity_raw": "14PCE",
-          "amount_raw": "420USD",
-          "weight_raw": "未公开",
-          "record_fingerprint": "641449afb90c7a06ca230c4d0d99ff98ba43e7f8e20d6b3ff9739611316a1c23"
-        }
-      ]
-    },
-    {
-      "source_key": "customs-evening-dress:c-ng-ty-tnhh-u-t-th-ng-m-i-v-xu-t-nh-p-kh-u-ph-c-quang",
-      "company": "CÔNG TY TNHH ĐẦU TƯ THƯƠNG MẠI VÀ XUẤT NHẬP KHẨU PHÚC QUANG",
-      "country": "越南",
-      "shipment_count": 1,
-      "first_import_date": "2025-11-25",
-      "latest_import_date": "2025-11-25",
-      "hs_codes": [
-        "62014090"
-      ],
-      "suppliers": [
-        "PINGXIANG YIGAO IMPORT AND EXPORT TRADING CO.,LTD"
-      ],
-      "product_descriptions": [
-        "Jacket evening gown for boy,cloth material woven from artificial fibers (polyester), size from 110 to 170. No brand. 100% new. NSX PINGXIANG YIGAO IMPORT AND EXPORT TRADING CO., LTD"
-      ],
-      "records": [
-        {
-          "import_date": "2025-11-25",
-          "importer_country": "越南",
-          "importer_name": "CÔNG TY TNHH ĐẦU TƯ THƯƠNG MẠI VÀ XUẤT NHẬP KHẨU PHÚC QUANG",
-          "seller_country": "中国",
-          "supplier_name": "PINGXIANG YIGAO IMPORT AND EXPORT TRADING CO.,LTD",
-          "origin_country": "中国",
-          "hs_code": "62014090",
-          "product_description": "Jacket evening gown for boy,cloth material woven from artificial fibers (polyester), size from 110 to 170. No brand. 100% new. NSX PINGXIANG YIGAO IMPORT AND EXPORT TRADING CO., LTD",
-          "trade_type": "进口数据",
-          "quantity_raw": "150PCE",
-          "amount_raw": "225USD",
-          "weight_raw": "未公开",
-          "record_fingerprint": "379d394be69552090740cb85024cd265345d3907911daf49b295f0110516e2f3"
         }
       ]
     },
@@ -1790,40 +1256,6 @@
           "amount_raw": "未公开",
           "weight_raw": "2103K",
           "record_fingerprint": "c409de9920a859199eb3c9b0011881d1a3d079f5e4f74502f8ce42b4b4537180"
-        }
-      ]
-    },
-    {
-      "source_key": "customs-evening-dress:c-ng-ty-tnhh-ph-t-tri-n-th-ng-m-i-v-xnk-i-minh",
-      "company": "CÔNG TY TNHH PHÁT TRIỂN THƯƠNG MẠI VÀ XNK ĐẠI MINH",
-      "country": "越南",
-      "shipment_count": 1,
-      "first_import_date": "2025-08-13",
-      "latest_import_date": "2025-08-13",
-      "hs_codes": [
-        "61029000"
-      ],
-      "suppliers": [
-        "HANGZHOU DAIBEI TRADING CO., LTD"
-      ],
-      "product_descriptions": [
-        "Women’s or girls’ overcoats,carcoats,cloaks,opera cape,anoraks(including ski jackets),windcheater,wind- jackets and similar articles,of other textile materials,knitted or crocheted,other than goods of heading NO. 61.04；Jacket evening gown for women (with belt, button replacement), the material is felt cloth, knitted, Size S-2XL, sign AK04,k brand,nsx Yiwu Xiakui Clothing Co., Ltd.,new 100%"
-      ],
-      "records": [
-        {
-          "import_date": "2025-08-13",
-          "importer_country": "越南",
-          "importer_name": "CÔNG TY TNHH PHÁT TRIỂN THƯƠNG MẠI VÀ XNK ĐẠI MINH",
-          "seller_country": "中国",
-          "supplier_name": "HANGZHOU DAIBEI TRADING CO., LTD",
-          "origin_country": "中国",
-          "hs_code": "61029000",
-          "product_description": "Women’s or girls’ overcoats,carcoats,cloaks,opera cape,anoraks(including ski jackets),windcheater,wind- jackets and similar articles,of other textile materials,knitted or crocheted,other than goods of heading NO. 61.04；Jacket evening gown for women (with belt, button replacement), the material is felt cloth, knitted, Size S-2XL, sign AK04,k brand,nsx Yiwu Xiakui Clothing Co., Ltd.,new 100%",
-          "trade_type": "进口数据",
-          "quantity_raw": "110PCE",
-          "amount_raw": "346.5USD",
-          "weight_raw": "未公开",
-          "record_fingerprint": "5aea52cd0bd47766c49035da8e70ce6306699d050e470f7417fc60b3df81e68f"
         }
       ]
     },
@@ -1926,6 +1358,40 @@
           "amount_raw": "17500USD",
           "weight_raw": "3938K",
           "record_fingerprint": "9a716bc3d58a6c9e86af779fd451bd9c8504f632656d25342b513c7608d80916"
+        }
+      ]
+    },
+    {
+      "source_key": "customs-evening-dress:ysd-logistics-ltd",
+      "company": "YSD LOGISTICS LTD",
+      "country": "英国",
+      "shipment_count": 1,
+      "first_import_date": "2024-09-28",
+      "latest_import_date": "2024-09-28",
+      "hs_codes": [
+        "610453"
+      ],
+      "suppliers": [
+        "SHENZHEN YUNSHIDA ELECTRONIC TECHNOLOGY CO LTD"
+      ],
+      "product_descriptions": [
+        "Knitted or crocheted skirts and divided skirts of synthetic fibres；PROM dress to Dress up on a ball"
+      ],
+      "records": [
+        {
+          "import_date": "2024-09-28",
+          "importer_country": "英国",
+          "importer_name": "YSD LOGISTICS LTD",
+          "seller_country": "中国",
+          "supplier_name": "SHENZHEN YUNSHIDA ELECTRONIC TECHNOLOGY CO LTD",
+          "origin_country": "-",
+          "hs_code": "610453",
+          "product_description": "Knitted or crocheted skirts and divided skirts of synthetic fibres；PROM dress to Dress up on a ball",
+          "trade_type": "进口数据",
+          "quantity_raw": "未公开",
+          "amount_raw": "784.5241USD",
+          "weight_raw": "0.0788t",
+          "record_fingerprint": "bedb7b5d39d250a9a2991d7d12e407a346c067324c751170fc8e9d2b45c38d01"
         }
       ]
     },
@@ -2232,40 +1698,6 @@
           "amount_raw": "291550",
           "weight_raw": "11420kg",
           "record_fingerprint": "2680b181784e8cbadc5d13d6e17c1cdef6a4b487ff28860b6582b7b18db86c28"
-        }
-      ]
-    },
-    {
-      "source_key": "customs-evening-dress:feather-brand-ltd",
-      "company": "FEATHER BRAND LTD",
-      "country": "美国",
-      "shipment_count": 1,
-      "first_import_date": "2016-06-07",
-      "latest_import_date": "2016-06-07",
-      "hs_codes": [
-        "950590"
-      ],
-      "suppliers": [
-        "SHENZHEN GDS TECHNOLOGY CO LTD"
-      ],
-      "product_descriptions": [
-        "Other festive, carnival or other entertainment articles, including conjuring tricks and novelty jokes；MASKUSED FOR PROM DRESS UPHS CODE:950590000 0"
-      ],
-      "records": [
-        {
-          "import_date": "2016-06-07",
-          "importer_country": "美国",
-          "importer_name": "FEATHER BRAND LTD",
-          "seller_country": "中国",
-          "supplier_name": "SHENZHEN GDS TECHNOLOGY CO LTD",
-          "origin_country": "中国",
-          "hs_code": "950590",
-          "product_description": "Other festive, carnival or other entertainment articles, including conjuring tricks and novelty jokes；MASKUSED FOR PROM DRESS UPHS CODE:950590000 0",
-          "trade_type": "进口数据",
-          "quantity_raw": "16CTN",
-          "amount_raw": "未公开",
-          "weight_raw": "175kg",
-          "record_fingerprint": "ae5565203556f465d050c03f250a18039324a370febb47d8d357affba911e91a"
         }
       ]
     }
