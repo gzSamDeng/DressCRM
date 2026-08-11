@@ -15,6 +15,7 @@ export function LeadIntelligenceWorkbench() {
   const [results, setResults] = useState<ScoredLead[]>([]);
   const [candidatesFound, setCandidatesFound] = useState(0);
   const [error, setError] = useState("");
+  const [customsImport, setCustomsImport] = useState<{ running: boolean; processed: number; total: number; message: string }>({ running: false, processed: 0, total: 39, message: "" });
 
   async function runSearch() {
     setRunState("searching");
@@ -33,6 +34,30 @@ export function LeadIntelligenceWorkbench() {
     } catch (searchError) {
       setError(searchError instanceof Error ? searchError.message : "搜索失败，请稍后重试。");
       setRunState("complete");
+    }
+  }
+
+  async function importCustomsData() {
+    setCustomsImport({ running: true, processed: 0, total: 39, message: "正在核验企业官网与联系方式…" });
+    let offset = 0;
+    try {
+      while (true) {
+        const response = await fetch("/api/lead-intelligence/import-customs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ offset, limit: 2 }),
+        });
+        const payload = await response.json() as { error?: string; nextOffset?: number; total?: number; complete?: boolean; totalImported?: number };
+        if (!response.ok || payload.error) throw new Error(payload.error ?? "海关数据导入失败。");
+        offset = payload.nextOffset ?? offset + 2;
+        setCustomsImport({ running: !payload.complete, processed: offset, total: payload.total ?? 39, message: payload.complete ? `已完成，待审核列表现有 ${payload.totalImported ?? 0} 条海关线索。` : "正在核验企业官网与联系方式…" });
+        if (payload.complete) {
+          window.location.href = "/lead-intelligence?reviewStatus=pending#review-center";
+          break;
+        }
+      }
+    } catch (importError) {
+      setCustomsImport((current) => ({ ...current, running: false, message: importError instanceof Error ? importError.message : "海关数据导入失败。" }));
     }
   }
 
@@ -59,6 +84,14 @@ export function LeadIntelligenceWorkbench() {
         <div className="connectorStatus">
           <span className="statusDot" />
           <div><strong>Serper · Google Search</strong><small>真实网页搜索，服务端安全调用</small></div>
+        </div>
+        <div className="strategyBlock">
+          <span className="strategyLabel">海关进口客户</span>
+          <p className="muted">附件已去重并保留每次进口日期，导入后统一进入待审核。</p>
+          <button className="secondaryButton" type="button" onClick={importCustomsData} disabled={customsImport.running}>
+            {customsImport.running ? `处理中 ${Math.min(customsImport.processed, customsImport.total)} / ${customsImport.total}` : "导入并在线补全海关线索"}
+          </button>
+          {customsImport.message && <small style={{display:"block",marginTop:8}}>{customsImport.message}</small>}
         </div>
       </aside>
 
