@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
   const [{ data: customers }, { data: discovered }] = await Promise.all([
     supabase.from("customers").select("id,company,website,contact_email"),
-    supabase.from("discovered_leads").select("id,source_key,company,website,customer_id,review_status"),
+    supabase.from("discovered_leads").select("id,source_key,company,website,customer_id,review_status,lead_source"),
   ]);
   let imported = 0;
   let skipped = 0;
@@ -60,10 +60,12 @@ export async function POST(request: Request) {
       (domain && normalizedDomain(row.website) === domain)
       || normalizedName(row.company) === name,
     );
-    const existingLead = (discovered ?? []).find((row) => row.source_key === seed.source_key);
+    const existingLead = (discovered ?? []).find((row) =>
+      row.source_key === seed.source_key || normalizedName(row.company) === name,
+    );
     const leadPayload = {
       search_job_id: job.id,
-      source_key: seed.source_key,
+      source_key: existingLead?.source_key ?? seed.source_key,
       company: seed.company,
       website: enrichment.website || null,
       country: seed.country,
@@ -90,7 +92,7 @@ export async function POST(request: Request) {
       data_completeness: enrichment.dataCompleteness,
       review_status: existingLead?.review_status ?? "pending",
       customer_id: matchedCustomer?.id ?? existingLead?.customer_id ?? null,
-      lead_source: "customs_import",
+      lead_source: existingLead?.lead_source ?? "customs_import",
       customs_import_count: seed.shipment_count,
       first_customs_import_at: seed.first_import_date,
       latest_customs_import_at: seed.latest_import_date,
