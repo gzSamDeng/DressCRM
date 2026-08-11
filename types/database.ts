@@ -24,6 +24,10 @@ export type Customer = {
   owner_id: string | null;
   assigned_by: string | null;
   assigned_at: string | null;
+  has_customs_import_records: boolean;
+  customs_import_count: number;
+  first_customs_import_at: string | null;
+  latest_customs_import_at: string | null;
   created_at: string;
   updated_at: string;
 };
