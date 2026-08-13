@@ -30,6 +30,16 @@ function usableEnglish(value: string | null | undefined, maxLength = 500) {
   return result && !cjkPattern.test(result) && !internalFragmentPattern.test(result) ? result : "";
 }
 
+export function customerDisplayName(value: string | null | undefined) {
+  const raw = usableEnglish(value, 180);
+  if (!raw) return "your team";
+  const concise = raw
+    .replace(/\s*(?:\.\.\.|…).*$/, "")
+    .split(/\s*[:|]\s*/, 1)[0]
+    .trim();
+  return concise.length >= 2 ? concise.slice(0, 80) : "your team";
+}
+
 function allCustomerText(customer: Customer) {
   return [
     customer.customer_type,

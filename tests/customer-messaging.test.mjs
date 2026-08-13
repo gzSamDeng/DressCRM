@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   buildCustomerMessagingProfile,
   classifyCustomer,
+  customerDisplayName,
   outboundCopyIssues,
   roleSpecificWritingRules,
 } from "../lib/customer-messaging.ts";
@@ -84,4 +85,11 @@ test("does not treat an importer reference as a customer-type mismatch", () => {
     { requireProductLanguage: true },
   );
   assert.deepEqual(issues, []);
+});
+
+test("shortens search-result titles before using a company name in outreach", () => {
+  assert.equal(
+    customerDisplayName("After Five Fashion: Prom dresses, Evening dresses, Mother of the ..."),
+    "After Five Fashion",
+  );
 });

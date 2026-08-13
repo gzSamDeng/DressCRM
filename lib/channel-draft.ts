@@ -3,6 +3,7 @@ import type { GmailMessageContext } from "@/lib/gmail";
 import type { CustomerSignalContext } from "@/lib/email-draft";
 import {
   buildCustomerMessagingProfile,
+  customerDisplayName,
   roleSpecificWritingRules,
 } from "@/lib/customer-messaging";
 
@@ -26,7 +27,7 @@ export function isManualChannel(value: string): value is ManualChannel {
 
 export function channelDraftFallback(customer: Customer, channel: ManualChannel, purpose: string) {
   const profile = buildCustomerMessagingProfile(customer);
-  const company = safeEnglish(customer.company, "your team", 200);
+  const company = customerDisplayName(customer.company);
   const goal = safeEnglish(purpose, "", 500);
   const relationshipQuestion = profile.archetype === "brand"
     ? "Are you currently developing an upcoming occasionwear collection or reviewing additional production capabilities?"
@@ -119,7 +120,7 @@ export function buildManualChannelContext(
 
   return [
     `Channel: ${channel}`,
-    `Company: ${clean(customer.company, 250)}`,
+    `Company: ${customerDisplayName(customer.company)}`,
     `Website: ${clean(customer.website, 500) || "Unknown"}`,
     `Location: ${[customer.city, customer.country].filter(Boolean).join(", ") || "Unknown"}`,
     "",
