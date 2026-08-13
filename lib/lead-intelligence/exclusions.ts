@@ -17,6 +17,7 @@ export const excludedLeadEmails = new Set([
 ]);
 
 export const excludedLeadCompanyTerms = [
+  "istanbul fashion center",
   "janel abiye",
   "la maison bridal",
   "polen poe",

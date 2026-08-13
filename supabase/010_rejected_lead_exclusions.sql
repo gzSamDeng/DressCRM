@@ -23,6 +23,7 @@ create policy "authenticated users read lead exclusions" on public.lead_exclusio
 
 insert into public.lead_exclusions (match_type, match_value, reason) values
   ('domain','istanbulfc.com','用户确认：电商平台，不属于目标礼服采购商'),
+  ('company','istanbul fashion center','用户确认：istanbulfc.com 对应电商平台，不属于目标礼服采购商'),
   ('domain','selene-couture.com','用户确认：地区数据错误且不作为目标礼服线索'),
   ('domain','yahoo.com','用户确认：搜索/门户平台，不作为客户网站'),
   ('domain','missrunway.com','用户确认：旧域名，现网址为 missrunway.com.au，且不纳入目标线索'),
@@ -122,7 +123,7 @@ with rejected as (
       risks = coalesce(risks, '[]'::jsonb) || jsonb_build_array('用户确认：非目标礼服采购商，永久排除')
   where public.normalized_lead_host(website) in ('istanbulfc.com','selene-couture.com','yahoo.com','missrunway.com','missrunway.com.au','lamaisonbridal.com','polenpoe.com','stylishop.com','annakoo.com')
      or lower(coalesce(contact_email,'')) in ('shop@missrunway.com','janelabiye8@gmail.com','hello.ksa@stylishop.com')
-     or lower(company) like any (array['%janel abiye%','%la maison bridal%','%polen poe%','%stylishop%','%annakoo%'])
+     or lower(company) like any (array['%istanbul fashion center%','%janel abiye%','%la maison bridal%','%polen poe%','%stylishop%','%annakoo%'])
   returning id
 ), excluded_customers as (
   update public.customers
@@ -133,7 +134,7 @@ with rejected as (
       next_follow_up_at = null
   where public.normalized_lead_host(website) in ('istanbulfc.com','selene-couture.com','yahoo.com','missrunway.com','missrunway.com.au','lamaisonbridal.com','polenpoe.com','stylishop.com','annakoo.com')
      or lower(coalesce(contact_email,'')) in ('shop@missrunway.com','janelabiye8@gmail.com','hello.ksa@stylishop.com')
-     or lower(company) like any (array['%janel abiye%','%la maison bridal%','%polen poe%','%stylishop%','%annakoo%'])
+     or lower(company) like any (array['%istanbul fashion center%','%janel abiye%','%la maison bridal%','%polen poe%','%stylishop%','%annakoo%'])
   returning id
 )
 select

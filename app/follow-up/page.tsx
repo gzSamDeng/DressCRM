@@ -57,7 +57,7 @@ export default async function FollowUpPage({
     supabase.from("follow_ups").select("*").order("happened_at", { ascending: false }).limit(300),
     supabase.from("user_profiles").select("id,email,display_name"),
     supabase.from("whatsapp_messages").select("*").order("happened_at", { ascending: false }).limit(500),
-    supabase.from("follow_ups").select("customer_id").eq("channel", "WhatsApp"),
+    supabase.from("follow_ups").select("customer_id").ilike("channel", "%whatsapp%"),
   ]);
   const customers = (customerData ?? []) as Customer[];
   const followUps = (followUpData ?? []) as FollowUp[];
