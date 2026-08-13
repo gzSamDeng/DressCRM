@@ -28,14 +28,15 @@
 }
 
 .mailReplyButton {
-  display: inline-flex !important;
-  margin: 10px 0 0 !important;
+  display: inline-flex;
+  margin: 10px 0 0;
   padding: 7px 11px;
   border: 1px solid #bfdbfe;
   border-radius: 8px;
   background: #eff6ff;
-  color: #1d4ed8 !important;
+  color: #1d4ed8;
   font-weight: 700;
+  cursor: pointer;
 }
 
 .emailCadenceNotice {

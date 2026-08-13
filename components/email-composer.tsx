@@ -76,6 +76,23 @@ export function EmailComposer({ customers, totalCustomers, initialReply = null }
   }, [customerSearch, customers, justSentAt, priorityFilter, showNotDueCustomers]);
 
   useEffect(() => {
+    function startReply(event: Event) {
+      const reply = (event as CustomEvent<EmailReplyContext>).detail;
+      if (!reply?.customer_id) return;
+      setShowNotDueCustomers(true);
+      setCustomerId(reply.customer_id);
+      setTo(reply.to);
+      setSubject(reply.subject);
+      setBody("");
+      setPurpose("回复客户最新来信中的具体问题，并延续当前沟通。");
+      setReplyContext(reply);
+      setStatus({ ok: true, message: "已进入客户邮件回复模式，可直接填写正文或让 AI 生成回复。" });
+    }
+    window.addEventListener("dresscrm:email-reply", startReply);
+    return () => window.removeEventListener("dresscrm:email-reply", startReply);
+  }, []);
+
+  useEffect(() => {
     if (filteredCustomers.some((item) => item.id === customerId)) return;
     const nextCustomer = filteredCustomers[0];
     setCustomerId(nextCustomer?.id || "");

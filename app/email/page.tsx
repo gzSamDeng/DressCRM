@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { EmailComposer, type EmailCustomerOption, type EmailReplyContext } from "@/components/email-composer";
+import { EmailInbox, type EmailInboxMessage } from "@/components/email-inbox";
 import { FollowUpTabs } from "@/components/follow-up-tabs";
 import { Header } from "@/components/header";
 import { buildEmailCadence } from "@/lib/email-cadence";
@@ -116,6 +117,23 @@ export default async function EmailPage({ searchParams }: { searchParams: Promis
     thread_id: replyMessage.threadId,
     message_id: replyMessage.messageId,
   } : null;
+  const inboxMessages: EmailInboxMessage[] = messages.map((message) => ({
+    id: message.id,
+    customerId: message.customerId,
+    company: message.company,
+    customerEmail: message.customerEmail,
+    direction: message.direction,
+    subject: message.subject,
+    snippet: message.snippet,
+    date: message.date,
+    reply: message.direction === "received" ? {
+      customer_id: message.customerId,
+      to: extractEmail(message.from) || message.customerEmail,
+      subject: replySubject(message.subject),
+      thread_id: message.threadId,
+      message_id: message.messageId,
+    } : null,
+  }));
 
   return <div className="shell"><Header/><main className="container emailPage">
     <div className="pageHeader"><div><span className="pageKicker">CUSTOMER FOLLOW-UP · EMAIL</span><h2>客户跟进 · 邮件</h2><p>全员共用一个业务邮箱，支持客户往来邮件、AI 草稿、发送和自动留痕。</p></div><a className="secondaryButton" href="/follow-up">返回跟进总览</a></div>
@@ -148,14 +166,7 @@ export default async function EmailPage({ searchParams }: { searchParams: Promis
         </div>
         <EmailComposer customers={options} totalCustomers={approvedCount} initialReply={initialReply}/>
       </section>
-      <section className="card inboxPanel"><div className="emailPanelHeading"><div><h3>客户往来邮件</h3><p>最近两年内最多显示 30 封匹配邮件。</p></div><span>{messages.length} 封</span></div>
-        {mailError && <div className="emailNotice error">{mailError}</div>}
-        <div className="mailList">{messages.map((message) => <article className="mailItem" key={message.id}>
-          <div className="mailMeta"><span className={message.direction === "received" ? "mailDirection received" : "mailDirection sent"}>{message.direction === "received" ? "客户来信" : "已发送"}</span><time>{new Date(message.date).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}</time></div>
-          <strong>{message.subject}</strong><a href={`/customers/${message.customerId}`}>{message.company} · {message.customerEmail}</a><p>{message.snippet || "（无预览内容）"}</p>
-          {message.direction === "received" && <a className="mailReplyButton" href={`/email?reply=${encodeURIComponent(message.id)}#email-composer`}>回复邮件</a>}
-        </article>)}{!messages.length && !mailError && <div className="emailEmpty"><strong>暂时没有匹配邮件</strong><p>系统只检索客户线索中已填写联系邮箱的企业。</p></div>}</div>
-      </section>
+      <EmailInbox messages={inboxMessages} mailError={mailError}/>
     </div>}
   </main></div>;
 }
