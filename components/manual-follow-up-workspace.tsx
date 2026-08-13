@@ -16,6 +16,7 @@ export type FollowUpCustomerOption = {
   instagram: string | null;
   website: string | null;
   whatsapp_contacted: boolean;
+  instagram_contacted: boolean;
   notes: string | null;
   next_follow_up_at: string | null;
 };
@@ -85,8 +86,12 @@ export function ManualFollowUpWorkspace({
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(addManualFollowUp, initialState);
-  const firstAvailableCustomer = channel === "WhatsApp"
-    ? customers.find((item) => !item.whatsapp_contacted)
+  const isContactHistoryChannel = channel === "WhatsApp" || channel === "Instagram";
+  const wasContacted = (item: FollowUpCustomerOption) => channel === "Instagram"
+    ? item.instagram_contacted
+    : item.whatsapp_contacted;
+  const firstAvailableCustomer = isContactHistoryChannel
+    ? customers.find((item) => !wasContacted(item))
     : customers[0];
   const [customerId, setCustomerId] = useState(
     customers.some((item) => item.id === initialCustomerId) ? initialCustomerId! : firstAvailableCustomer?.id || "",
@@ -95,7 +100,7 @@ export function ManualFollowUpWorkspace({
   const [search, setSearch] = useState("");
   const [showContactedCustomers, setShowContactedCustomers] = useState(false);
   const [contactedCustomerIds, setContactedCustomerIds] = useState(
-    () => new Set(customers.filter((item) => item.whatsapp_contacted).map((item) => item.id)),
+    () => new Set(customers.filter(wasContacted).map((item) => item.id)),
   );
   const [purpose, setPurpose] = useState("");
   const [draft, setDraft] = useState("");
@@ -112,12 +117,12 @@ export function ManualFollowUpWorkspace({
   const filteredCustomers = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     return customers.filter((item) =>
-      (channel !== "WhatsApp" || showContactedCustomers || !contactedCustomerIds.has(item.id))
+      (!isContactHistoryChannel || showContactedCustomers || !contactedCustomerIds.has(item.id))
       && (!priority || item.priority === priority)
       && (!keyword || [item.company, item.country || "", item.contact_email || "", item.whatsapp || "", item.instagram || "", item.website || ""]
         .some((value) => value.toLowerCase().includes(keyword)))
     );
-  }, [channel, contactedCustomerIds, customers, priority, search, showContactedCustomers]);
+  }, [contactedCustomerIds, customers, isContactHistoryChannel, priority, search, showContactedCustomers]);
 
   useEffect(() => {
     activeCustomerIdRef.current = customerId;
@@ -126,11 +131,11 @@ export function ManualFollowUpWorkspace({
   useEffect(() => {
     if (!state.ok) return;
     const completedCustomerId = activeCustomerIdRef.current;
-    if (channel === "WhatsApp" && completedCustomerId) {
+    if (isContactHistoryChannel && completedCustomerId) {
       setContactedCustomerIds((current) => new Set(current).add(completedCustomerId));
     }
     router.refresh();
-  }, [channel, router, state]);
+  }, [isContactHistoryChannel, router, state]);
 
   useEffect(() => {
     if (filteredCustomers.some((item) => item.id === customerId)) return;
@@ -144,7 +149,7 @@ export function ManualFollowUpWorkspace({
     setSearch(nextSearch);
     const keyword = nextSearch.trim().toLowerCase();
     const next = customers.filter((item) =>
-      (channel !== "WhatsApp" || showContactedCustomers || !contactedCustomerIds.has(item.id))
+      (!isContactHistoryChannel || showContactedCustomers || !contactedCustomerIds.has(item.id))
       && (!nextPriority || item.priority === nextPriority)
       && (!keyword || [item.company, item.country || "", item.contact_email || "", item.whatsapp || "", item.instagram || "", item.website || ""]
         .some((value) => value.toLowerCase().includes(keyword)))
@@ -198,11 +203,11 @@ export function ManualFollowUpWorkspace({
         </select></label>
         <label>搜索客户<input value={search} onChange={(event) => updateFilter(priority, event.target.value)} placeholder="公司、国家、邮箱、号码、网站或 Instagram"/></label>
       </div>
-      {channel === "WhatsApp" && <div className="whatsappFilterLine">
+      {isContactHistoryChannel && <div className="whatsappFilterLine">
         <p>当前显示 {filteredCustomers.length} / {customers.length} 位客户</p>
         <label className="whatsappSentToggle">
           <input type="checkbox" checked={showContactedCustomers} onChange={(event) => setShowContactedCustomers(event.target.checked)}/>
-          显示已发过 WhatsApp 的客户（{contactedCustomerIds.size}）
+          显示已发过 {channel} 的客户（{contactedCustomerIds.size}）
         </label>
       </div>}
       <label>选择客户<select value={customerId} onChange={(event) => { setCustomerId(event.target.value); setDraft(""); setSummary(""); }}>
