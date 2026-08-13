@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { addManualFollowUp, type FollowUpActionState } from "@/app/actions";
 import type { ManualChannel } from "@/lib/channel-draft";
@@ -14,6 +14,7 @@ export type FollowUpCustomerOption = {
   contact_email: string | null;
   whatsapp: string | null;
   website: string | null;
+  whatsapp_contacted: boolean;
   notes: string | null;
   next_follow_up_at: string | null;
 };
@@ -71,39 +72,65 @@ export function ManualFollowUpWorkspace({
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(addManualFollowUp, initialState);
+  const firstAvailableCustomer = channel === "WhatsApp"
+    ? customers.find((item) => !item.whatsapp_contacted)
+    : customers[0];
   const [customerId, setCustomerId] = useState(
-    customers.some((item) => item.id === initialCustomerId) ? initialCustomerId! : customers[0]?.id || "",
+    customers.some((item) => item.id === initialCustomerId) ? initialCustomerId! : firstAvailableCustomer?.id || "",
   );
   const [priority, setPriority] = useState("");
   const [search, setSearch] = useState("");
+  const [showContactedCustomers, setShowContactedCustomers] = useState(false);
+  const [contactedCustomerIds, setContactedCustomerIds] = useState(
+    () => new Set(customers.filter((item) => item.whatsapp_contacted).map((item) => item.id)),
+  );
   const [purpose, setPurpose] = useState("");
   const [draft, setDraft] = useState("");
   const [summary, setSummary] = useState("");
   const [generating, setGenerating] = useState(false);
   const [copyStatus, setCopyStatus] = useState("");
+  const activeCustomerIdRef = useRef(customerId);
   const meta = channelMeta[channel];
   const customer = customers.find((item) => item.id === customerId);
 
   const filteredCustomers = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     return customers.filter((item) =>
-      (!priority || item.priority === priority)
-      && (!keyword || [item.company, item.country || "", item.contact_email || "", item.whatsapp || ""]
+      (channel !== "WhatsApp" || showContactedCustomers || !contactedCustomerIds.has(item.id))
+      && (!priority || item.priority === priority)
+      && (!keyword || [item.company, item.country || "", item.contact_email || "", item.whatsapp || "", item.website || ""]
         .some((value) => value.toLowerCase().includes(keyword)))
     );
-  }, [customers, priority, search]);
+  }, [channel, contactedCustomerIds, customers, priority, search, showContactedCustomers]);
 
   useEffect(() => {
-    if (state.ok) router.refresh();
-  }, [router, state.ok]);
+    activeCustomerIdRef.current = customerId;
+  }, [customerId]);
+
+  useEffect(() => {
+    if (!state.ok) return;
+    const completedCustomerId = activeCustomerIdRef.current;
+    if (channel === "WhatsApp" && completedCustomerId) {
+      setContactedCustomerIds((current) => new Set(current).add(completedCustomerId));
+    }
+    router.refresh();
+  }, [channel, router, state]);
+
+  useEffect(() => {
+    if (filteredCustomers.some((item) => item.id === customerId)) return;
+    setCustomerId(filteredCustomers[0]?.id || "");
+    setDraft("");
+    setSummary("");
+  }, [customerId, filteredCustomers]);
 
   function updateFilter(nextPriority: string, nextSearch: string) {
     setPriority(nextPriority);
     setSearch(nextSearch);
     const keyword = nextSearch.trim().toLowerCase();
     const next = customers.filter((item) =>
-      (!nextPriority || item.priority === nextPriority)
-      && (!keyword || [item.company, item.country || "", item.contact_email || "", item.whatsapp || ""]
+      (channel !== "WhatsApp" || showContactedCustomers || !contactedCustomerIds.has(item.id))
+      && (!nextPriority || item.priority === nextPriority)
+      && (!keyword || [item.company, item.country || "", item.contact_email || "", item.whatsapp || "", item.website || ""]
         .some((value) => value.toLowerCase().includes(keyword)))
     );
     if (!next.some((item) => item.id === customerId)) setCustomerId(next[0]?.id || "");
@@ -155,8 +182,15 @@ export function ManualFollowUpWorkspace({
         </select></label>
         <label>搜索客户<input value={search} onChange={(event) => updateFilter(priority, event.target.value)} placeholder="公司、国家、邮箱或号码"/></label>
       </div>
+      {channel === "WhatsApp" && <div className="whatsappFilterLine">
+        <p>当前显示 {filteredCustomers.length} / {customers.length} 位客户</p>
+        <label className="whatsappSentToggle">
+          <input type="checkbox" checked={showContactedCustomers} onChange={(event) => setShowContactedCustomers(event.target.checked)}/>
+          显示已发过 WhatsApp 的客户（{contactedCustomerIds.size}）
+        </label>
+      </div>}
       <label>选择客户<select value={customerId} onChange={(event) => { setCustomerId(event.target.value); setDraft(""); setSummary(""); }}>
-        {!filteredCustomers.length && <option value="">没有符合条件的客户</option>}
+        {!filteredCustomers.length && <option value="">没有待首次发送的客户，可勾选显示已发客户</option>}
         {filteredCustomers.map((item) => <option key={item.id} value={item.id}>{item.priority} · {item.company} · {item.country || "地区待确认"}</option>)}
       </select></label>
       {customer && <div className="selectedCustomer">
@@ -165,6 +199,7 @@ export function ManualFollowUpWorkspace({
         <div><span>可用联系方式</span><strong>{customer.whatsapp || customer.contact_email || "尚未填写"}</strong></div>
         <div><span>下次跟进</span><strong>{customer.next_follow_up_at ? new Date(customer.next_follow_up_at).toLocaleDateString("zh-CN") : "未安排"}</strong></div>
       </div>}
+      {customer?.website && <div className="selectedCustomerWebsite manualCustomerWebsite"><span>客户网站</span><a href={customer.website.match(/^https?:\/\//i) ? customer.website : `https://${customer.website}`} target="_blank" rel="noreferrer">{customer.website}</a><small>发送前可点击官网，再次确认客户与产品是否匹配。</small></div>}
       <label>本次沟通目标（可选）<input value={purpose} onChange={(event) => setPurpose(event.target.value)} placeholder="例如：确认秋季采购计划、推荐新系列、了解价格区间"/></label>
       <button type="button" className="secondaryButton fullButton" onClick={generateDraft} disabled={!customerId || generating}>{generating ? "AI 正在生成…" : `生成${meta.draftLabel}`}</button>
       <label>{meta.draftLabel}<textarea className="channelDraft" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="生成后可继续人工修改"/></label>

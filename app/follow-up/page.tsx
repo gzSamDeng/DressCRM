@@ -52,17 +52,22 @@ export default async function FollowUpPage({
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect("/login");
 
-  const [{ data: customerData }, { data: followUpData }, { data: profileData }, { data: whatsappData }] = await Promise.all([
+  const [{ data: customerData }, { data: followUpData }, { data: profileData }, { data: whatsappData }, { data: whatsappFollowUpData }] = await Promise.all([
     supabase.from("customers").select("*").eq("is_excluded", false).order("company", { ascending: true }),
     supabase.from("follow_ups").select("*").order("happened_at", { ascending: false }).limit(300),
     supabase.from("user_profiles").select("id,email,display_name"),
     supabase.from("whatsapp_messages").select("*").order("happened_at", { ascending: false }).limit(500),
+    supabase.from("follow_ups").select("customer_id").eq("channel", "WhatsApp"),
   ]);
   const customers = (customerData ?? []) as Customer[];
   const followUps = (followUpData ?? []) as FollowUp[];
   const profiles = (profileData ?? []) as Profile[];
   const customerMap = new Map(customers.map((item) => [item.id, item]));
   const storedWhatsAppMessages = (whatsappData ?? []) as WhatsAppMessage[];
+  const contactedWhatsAppCustomerIds = new Set([
+    ...(whatsappFollowUpData ?? []).map((item) => item.customer_id),
+    ...storedWhatsAppMessages.filter((item) => item.direction === "outbound" && item.customer_id).map((item) => item.customer_id!),
+  ]);
   const whatsappMessages = storedWhatsAppMessages.length ? storedWhatsAppMessages : followUps
     .filter((item) => item.channel === "WhatsApp")
     .map((item) => {
@@ -117,6 +122,7 @@ export default async function FollowUpPage({
       contact_email: item.contact_email,
       whatsapp: item.whatsapp,
       website: item.website,
+      whatsapp_contacted: contactedWhatsAppCustomerIds.has(item.id),
       notes: item.notes,
       next_follow_up_at: item.next_follow_up_at,
     }))
