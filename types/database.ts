@@ -16,6 +16,7 @@ export type Customer = {
   buyer_value: string | null;
   contact_email: string | null;
   whatsapp: string | null;
+  instagram: string | null;
   recommended_line: string | null;
   evidence: string | null;
   source_url: string | null;

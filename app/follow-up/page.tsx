@@ -12,6 +12,7 @@ import { whatsappConfig, whatsappConfigured } from "@/lib/whatsapp";
 import type { Customer, FollowUp, WhatsAppMessage } from "@/types/database";
 import "./follow-up.css";
 import "./integrations.css";
+import "./instagram.css";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,7 @@ export default async function FollowUpPage({
   const requestedChannel = (params.channel || "overview").toLowerCase();
   const channelNames: Record<string, ManualChannel> = {
     whatsapp: "WhatsApp",
+    instagram: "Instagram",
     telegram: "Telegram",
     phone: "Phone",
     linkedin: "LinkedIn",
@@ -121,6 +123,7 @@ export default async function FollowUpPage({
       customer_type: item.customer_type,
       contact_email: item.contact_email,
       whatsapp: item.whatsapp,
+      instagram: item.instagram,
       website: item.website,
       whatsapp_contacted: contactedWhatsAppCustomerIds.has(item.id),
       notes: item.notes,

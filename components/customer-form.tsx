@@ -17,6 +17,7 @@ export function CustomerForm({ customer, action }: { customer?: Customer; action
         <label>客户类型<input name="customer_type" placeholder="进口商、买手店、零售商…" defaultValue={c?.customer_type ?? ""}/></label>
         <label>邮箱<input name="contact_email" type="email" placeholder="buyer@company.com" defaultValue={c?.contact_email ?? ""}/></label>
         <label>WhatsApp<input name="whatsapp" type="tel" placeholder="+90 …" defaultValue={c?.whatsapp ?? ""}/></label>
+        <label>Instagram<input name="instagram" placeholder="https://www.instagram.com/company/ 或 @company" defaultValue={c?.instagram ?? ""}/></label>
         <label>来源网址<input name="source_url" type="url" placeholder="https://" defaultValue={c?.source_url ?? ""}/></label>
       </div>
       <div className="formSectionHeading"><div><h3>评估与状态</h3><p>线索优先级、产品匹配和跟进阶段</p></div></div>

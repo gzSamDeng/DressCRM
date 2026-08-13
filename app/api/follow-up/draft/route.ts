@@ -62,7 +62,9 @@ export async function POST(request: Request) {
 
     const phoneRules = payload.channel === "Phone"
       ? "Create a concise call plan with an opening, 3-5 discovery questions, likely objections, and a clear next step. Do not write a fake transcript."
-      : "Create one concise outreach message suitable for the selected platform, normally 60-130 words. Do not add a subject line.";
+      : payload.channel === "Instagram"
+        ? "Create one natural Instagram DM of 45-90 words. Make the first sentence customer-specific, use short mobile-friendly paragraphs, do not add a subject line, links, hashtags, a long signature, or ask multiple questions."
+        : "Create one concise outreach message suitable for the selected platform, normally 60-130 words. Do not add a subject line.";
     const response = await fetch(
       directOpenAiKey ? "https://api.openai.com/v1/responses" : "https://ai-gateway.vercel.sh/v1/responses",
       {

@@ -6,7 +6,7 @@ import {
   roleSpecificWritingRules,
 } from "@/lib/customer-messaging";
 
-export const manualChannels = ["WhatsApp", "Telegram", "Phone", "LinkedIn"] as const;
+export const manualChannels = ["WhatsApp", "Instagram", "Telegram", "Phone", "LinkedIn"] as const;
 export type ManualChannel = typeof manualChannels[number];
 
 const cjkPattern = /[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]/;
@@ -52,6 +52,23 @@ export function channelDraftFallback(customer: Customer, channel: ManualChannel,
       ...(goal ? ["", `Additional objective: ${goal}`] : []),
       "",
       "Next step: Offer to send only the most relevant product and production information discussed during the call.",
+    ].join("\n");
+  }
+
+  if (channel === "Instagram") {
+    const opening = profile.archetype === "unknown"
+      ? `I am reaching out to ${company} to understand whether you work with external occasionwear production partners.`
+      : `${company}'s focus as a ${profile.archetypeLabel} looks relevant to our work in ${profile.productOpportunity}.`;
+    return [
+      `Hi ${company} team,`,
+      "",
+      opening,
+      `We ${profile.valueProposition}.`,
+      goal || relationshipQuestion,
+      "",
+      "If relevant, I would be glad to share a few focused examples here.",
+      "",
+      "Sam Deng",
     ].join("\n");
   }
 

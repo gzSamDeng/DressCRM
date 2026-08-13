@@ -13,6 +13,7 @@ export type FollowUpCustomerOption = {
   customer_type: string | null;
   contact_email: string | null;
   whatsapp: string | null;
+  instagram: string | null;
   website: string | null;
   whatsapp_contacted: boolean;
   notes: string | null;
@@ -26,6 +27,12 @@ const channelMeta: Record<ManualChannel, { title: string; description: string; a
     description: "AI 生成英文短消息，业务员确认后打开 WhatsApp 发送，再将结果保存到系统。",
     action: "打开 WhatsApp",
     draftLabel: "WhatsApp 消息建议",
+  },
+  Instagram: {
+    title: "Instagram 人工开发",
+    description: "AI 根据客户背景生成英文私信；确认后打开客户 Instagram 主页发送，再把实际结果保存到系统。官方接口不能主动联系从未给我们发过消息的陌生客户。",
+    action: "打开客户 Instagram",
+    draftLabel: "Instagram 私信建议",
   },
   Telegram: {
     title: "Telegram 人工跟进",
@@ -51,6 +58,12 @@ function contactUrl(channel: ManualChannel, customer: FollowUpCustomerOption | u
   if (channel === "WhatsApp") {
     const digits = (customer?.whatsapp || "").replace(/\D/g, "");
     return digits ? `https://wa.me/${digits}?text=${encodeURIComponent(draft)}` : "https://web.whatsapp.com/";
+  }
+  if (channel === "Instagram") {
+    const direct = customer?.instagram?.trim();
+    if (direct) return direct.startsWith("http") ? direct : `https://www.instagram.com/${direct.replace(/^@/, "").replace(/^\/+|\/+$/g, "")}/`;
+    const match = customer?.notes?.match(/https?:\/\/(?:www\.)?instagram\.com\/[^\s，。]+/i);
+    return match?.[0] || "https://www.instagram.com/";
   }
   if (channel === "Telegram") return "https://web.telegram.org/k/";
   if (channel === "LinkedIn") {
@@ -92,13 +105,16 @@ export function ManualFollowUpWorkspace({
   const activeCustomerIdRef = useRef(customerId);
   const meta = channelMeta[channel];
   const customer = customers.find((item) => item.id === customerId);
+  const selectedContact = channel === "Instagram"
+    ? customer?.instagram || "尚未填写 Instagram"
+    : customer?.whatsapp || customer?.contact_email || "尚未填写";
 
   const filteredCustomers = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     return customers.filter((item) =>
       (channel !== "WhatsApp" || showContactedCustomers || !contactedCustomerIds.has(item.id))
       && (!priority || item.priority === priority)
-      && (!keyword || [item.company, item.country || "", item.contact_email || "", item.whatsapp || "", item.website || ""]
+      && (!keyword || [item.company, item.country || "", item.contact_email || "", item.whatsapp || "", item.instagram || "", item.website || ""]
         .some((value) => value.toLowerCase().includes(keyword)))
     );
   }, [channel, contactedCustomerIds, customers, priority, search, showContactedCustomers]);
@@ -130,7 +146,7 @@ export function ManualFollowUpWorkspace({
     const next = customers.filter((item) =>
       (channel !== "WhatsApp" || showContactedCustomers || !contactedCustomerIds.has(item.id))
       && (!nextPriority || item.priority === nextPriority)
-      && (!keyword || [item.company, item.country || "", item.contact_email || "", item.whatsapp || "", item.website || ""]
+      && (!keyword || [item.company, item.country || "", item.contact_email || "", item.whatsapp || "", item.instagram || "", item.website || ""]
         .some((value) => value.toLowerCase().includes(keyword)))
     );
     if (!next.some((item) => item.id === customerId)) setCustomerId(next[0]?.id || "");
@@ -180,7 +196,7 @@ export function ManualFollowUpWorkspace({
         <label>客户等级<select value={priority} onChange={(event) => updateFilter(event.target.value, search)}>
           <option value="">全部等级</option>{["A+","A","B","C","D"].map((item) => <option key={item}>{item}</option>)}
         </select></label>
-        <label>搜索客户<input value={search} onChange={(event) => updateFilter(priority, event.target.value)} placeholder="公司、国家、邮箱或号码"/></label>
+        <label>搜索客户<input value={search} onChange={(event) => updateFilter(priority, event.target.value)} placeholder="公司、国家、邮箱、号码、网站或 Instagram"/></label>
       </div>
       {channel === "WhatsApp" && <div className="whatsappFilterLine">
         <p>当前显示 {filteredCustomers.length} / {customers.length} 位客户</p>
@@ -196,7 +212,7 @@ export function ManualFollowUpWorkspace({
       {customer && <div className="selectedCustomer">
         <div><span>公司</span><strong>{customer.company}</strong></div>
         <div><span>客户类型</span><strong>{customer.customer_type || "待确认"}</strong></div>
-        <div><span>可用联系方式</span><strong>{customer.whatsapp || customer.contact_email || "尚未填写"}</strong></div>
+        <div><span>{channel === "Instagram" ? "Instagram 账号" : "可用联系方式"}</span><strong>{selectedContact}</strong></div>
         <div><span>下次跟进</span><strong>{customer.next_follow_up_at ? new Date(customer.next_follow_up_at).toLocaleDateString("zh-CN") : "未安排"}</strong></div>
       </div>}
       {customer?.website && <div className="selectedCustomerWebsite manualCustomerWebsite"><span>客户网站</span><a href={customer.website.match(/^https?:\/\//i) ? customer.website : `https://${customer.website}`} target="_blank" rel="noreferrer">{customer.website}</a><small>发送前可点击官网，再次确认客户与产品是否匹配。</small></div>}
