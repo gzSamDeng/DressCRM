@@ -41,9 +41,11 @@ export async function POST(request: Request) {
     const { data: auth } = await supabase.auth.getUser();
     if (!auth.user) return NextResponse.json({ error: "请先登录系统。" }, { status: 401 });
 
-    const payload = await request.json() as { customer_id?: string; purpose?: string };
+    const payload = await request.json() as { customer_id?: string; purpose?: string; reply_message_id?: string };
     if (!payload.customer_id) return NextResponse.json({ error: "请先选择客户。" }, { status: 400 });
-    const purpose = payload.purpose?.trim() || "";
+    const purpose = payload.purpose?.trim() || (payload.reply_message_id
+      ? "Reply directly to the customer's latest email, address its actual content, and continue the existing conversation naturally."
+      : "");
 
     const [
       { data: customerData, error: customerError },

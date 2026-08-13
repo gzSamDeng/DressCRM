@@ -5,6 +5,39 @@
   margin: 0 0 18px;
 }
 
+.emailReplyMode {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid #93c5fd;
+  border-radius: 10px;
+  background: #eff6ff;
+}
+
+.emailReplyMode div { display: grid; gap: 3px; }
+.emailReplyMode strong { color: #1e40af; }
+.emailReplyMode span { color: #475569; font-size: 12px; }
+.emailReplyMode button {
+  border: 0;
+  background: transparent;
+  color: #1d4ed8;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mailReplyButton {
+  display: inline-flex !important;
+  margin: 10px 0 0 !important;
+  padding: 7px 11px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8 !important;
+  font-weight: 700;
+}
+
 .emailCadenceNotice {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

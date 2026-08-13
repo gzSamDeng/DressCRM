@@ -22,6 +22,14 @@ export type EmailCustomerOption = {
   timing_status: "first_contact" | "due" | "today" | "upcoming" | "unknown";
 };
 
+export type EmailReplyContext = {
+  customer_id: string;
+  to: string;
+  subject: string;
+  thread_id: string;
+  message_id: string;
+};
+
 function formatDate(value: string | null) {
   return value ? new Date(value).toLocaleDateString("zh-CN", { timeZone: "Asia/Shanghai" }) : "—";
 }
@@ -34,22 +42,27 @@ function timingCopy(customer: EmailCustomerOption) {
   return `距离建议发送时间还有 ${Math.abs(customer.overdue_days ?? 0)} 天`;
 }
 
-export function EmailComposer({ customers, totalCustomers }: { customers: EmailCustomerOption[]; totalCustomers: number }) {
+export function EmailComposer({ customers, totalCustomers, initialReply = null }: {
+  customers: EmailCustomerOption[];
+  totalCustomers: number;
+  initialReply?: EmailReplyContext | null;
+}) {
   const router = useRouter();
   const firstDueCustomer = customers.find((item) => item.email_due);
-  const [customerId, setCustomerId] = useState(firstDueCustomer?.id || "");
-  const [to, setTo] = useState(firstDueCustomer?.contact_email || "");
+  const [customerId, setCustomerId] = useState(initialReply?.customer_id || firstDueCustomer?.id || "");
+  const [to, setTo] = useState(initialReply?.to || firstDueCustomer?.contact_email || "");
   const [cc, setCc] = useState(DEFAULT_CC);
   const [priorityFilter, setPriorityFilter] = useState("");
   const [customerSearch, setCustomerSearch] = useState("");
-  const [showNotDueCustomers, setShowNotDueCustomers] = useState(false);
+  const [showNotDueCustomers, setShowNotDueCustomers] = useState(Boolean(initialReply));
   const [justSentAt, setJustSentAt] = useState<Record<string, string>>({});
-  const [purpose, setPurpose] = useState("");
-  const [subject, setSubject] = useState("");
+  const [purpose, setPurpose] = useState(initialReply ? "回复客户最新来信中的具体问题，并延续当前沟通。" : "");
+  const [subject, setSubject] = useState(initialReply?.subject || "");
   const [body, setBody] = useState("");
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; message: string } | null>(null);
+  const [replyContext, setReplyContext] = useState<EmailReplyContext | null>(initialReply);
   const customer = useMemo(() => customers.find((item) => item.id === customerId), [customerId, customers]);
   const filteredCustomers = useMemo(() => {
     const keyword = customerSearch.trim().toLowerCase();
@@ -73,6 +86,7 @@ export function EmailComposer({ customers, totalCustomers }: { customers: EmailC
     const selected = customers.find((item) => item.id === id);
     setCustomerId(id);
     setTo(selected?.contact_email || "");
+    setReplyContext(null);
     setStatus(null);
   }
 
@@ -89,7 +103,7 @@ export function EmailComposer({ customers, totalCustomers }: { customers: EmailC
       const response = await fetch("/api/gmail/draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customer_id: customerId, purpose }),
+        body: JSON.stringify({ customer_id: customerId, purpose, reply_message_id: replyContext?.message_id }),
       });
       const data = await response.json() as {
         subject?: string;
@@ -99,7 +113,7 @@ export function EmailComposer({ customers, totalCustomers }: { customers: EmailC
         error?: string;
       };
       if (!response.ok || !data.subject || !data.body) throw new Error(data.error || "草稿生成失败。");
-      setSubject(data.subject);
+      setSubject(replyContext?.subject || data.subject);
       setBody(data.body);
       const context = data.context;
       setStatus({
@@ -129,6 +143,7 @@ export function EmailComposer({ customers, totalCustomers }: { customers: EmailC
       setSubject("");
       setBody("");
       setPurpose("");
+      setReplyContext(null);
       form.reset();
       setCc(DEFAULT_CC);
       router.refresh();
@@ -145,7 +160,13 @@ export function EmailComposer({ customers, totalCustomers }: { customers: EmailC
       : <div className="emailEmpty"><strong>负责的客户还没有可用邮箱</strong><p>请先在“客户线索”中为客户补充联系邮箱。</p></div>;
   }
 
-  return <form className="emailComposeForm" onSubmit={send}>
+  return <form className="emailComposeForm" onSubmit={send} id="email-composer">
+    {replyContext && <div className="emailReplyMode">
+      <div><strong>正在回复客户来信</strong><span>邮件会发送到原 Gmail 会话中，而不是新建独立邮件。</span></div>
+      <button type="button" onClick={() => { setReplyContext(null); setSubject(""); setPurpose(""); }}>取消回复</button>
+    </div>}
+    <input type="hidden" name="thread_id" value={replyContext?.thread_id || ""}/>
+    <input type="hidden" name="reply_message_id" value={replyContext?.message_id || ""}/>
     <div className="composeRow">
       <label>客户等级
         <select

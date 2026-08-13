@@ -23,6 +23,8 @@ export async function POST(request: Request) {
     const cc = String(formData.get("cc") || "").trim();
     const subject = String(formData.get("subject") || "").trim();
     const body = String(formData.get("body") || "").trim();
+    const threadId = String(formData.get("thread_id") || "").trim();
+    const replyMessageId = String(formData.get("reply_message_id") || "").trim();
     if (!customerId || !emailPattern.test(to) || !subject || !body) {
       return NextResponse.json({ error: "请选择客户，并填写有效收件人、主题和正文。" }, { status: 400 });
     }
@@ -54,14 +56,23 @@ export async function POST(request: Request) {
       attachment = { name: file.name, type: file.type || "application/octet-stream", bytes: Buffer.from(await file.arrayBuffer()) };
     }
 
-    const raw = buildRawEmail({ from: shared.account.email, to, cc: ccAddresses.join(", "), subject, body, attachment });
-    const sent = await sendGmailMessage(shared.supabase, shared.account, raw);
+    const raw = buildRawEmail({
+      from: shared.account.email,
+      to,
+      cc: ccAddresses.join(", "),
+      subject,
+      body,
+      replyToMessageId: replyMessageId || undefined,
+      attachment,
+    });
+    const sent = await sendGmailMessage(shared.supabase, shared.account, raw, threadId || undefined);
+    const isReply = Boolean(threadId && replyMessageId);
     const { error: followUpError } = await supabase.from("follow_ups").insert({
       customer_id: customer.id,
       channel: "Email",
-      summary: `发送邮件：${subject}（收件人：${to}）`,
-      outcome: "无回复",
-      next_action: "等待客户回复",
+      summary: `${isReply ? "回复客户邮件" : "发送邮件"}：${subject}（收件人：${to}）`,
+      outcome: isReply ? "已回复" : "无回复",
+      next_action: "等待客户后续回复",
       happened_at: new Date().toISOString(),
       created_by: auth.user.id,
     });

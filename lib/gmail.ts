@@ -11,6 +11,7 @@ export const gmailScopes = [
 export type GmailMessageSummary = {
   id: string;
   threadId: string;
+  messageId: string;
   customerId: string;
   company: string;
   customerEmail: string;
@@ -177,7 +178,7 @@ export async function listCustomerMessages(
   const list = await gmailJson<GmailListResponse>(accessToken, `https://gmail.googleapis.com/gmail/v1/users/me/messages?${params}`);
   const messages = await Promise.all((list.messages ?? []).map(({ id }) => {
     const detailParams = new URLSearchParams({ format: "metadata" });
-    ["From", "To", "Cc", "Subject", "Date"].forEach((header) => detailParams.append("metadataHeaders", header));
+    ["From", "To", "Cc", "Subject", "Date", "Message-ID"].forEach((header) => detailParams.append("metadataHeaders", header));
     return gmailJson<GmailMessageResponse>(accessToken, `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?${detailParams}`);
   }));
 
@@ -194,6 +195,7 @@ export async function listCustomerMessages(
     return [{
       id: message.id,
       threadId: message.threadId,
+      messageId: headerValue(message, "Message-ID"),
       customerId: match.customer.id,
       company: match.customer.company,
       customerEmail: match.email,
@@ -238,6 +240,7 @@ export async function listCustomerMessageHistory(
     return {
       id: message.id,
       threadId: message.threadId,
+      messageId: headerValue(message, "Message-ID"),
       customerId: customer.id,
       company: customer.company,
       customerEmail,
@@ -271,6 +274,7 @@ export function buildRawEmail(input: {
   cc?: string;
   subject: string;
   body: string;
+  replyToMessageId?: string;
   attachment?: { name: string; type: string; bytes: Buffer };
 }) {
   const headers = [
@@ -278,6 +282,10 @@ export function buildRawEmail(input: {
     `To: ${safeHeader(input.to)}`,
     ...(input.cc ? [`Cc: ${safeHeader(input.cc)}`] : []),
     `Subject: ${encodedSubject(input.subject)}`,
+    ...(input.replyToMessageId ? [
+      `In-Reply-To: ${safeHeader(input.replyToMessageId)}`,
+      `References: ${safeHeader(input.replyToMessageId)}`,
+    ] : []),
     "MIME-Version: 1.0",
   ];
 
@@ -313,10 +321,10 @@ export function buildRawEmail(input: {
   return Buffer.from(raw, "utf8").toString("base64url");
 }
 
-export async function sendGmailMessage(supabase: SupabaseClient, account: EmailAccount, raw: string) {
+export async function sendGmailMessage(supabase: SupabaseClient, account: EmailAccount, raw: string, threadId?: string) {
   const accessToken = await getGmailAccessToken(supabase, account);
   return gmailJson<{ id: string; threadId: string }>(accessToken, "https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
     method: "POST",
-    body: JSON.stringify({ raw }),
+    body: JSON.stringify({ raw, ...(threadId ? { threadId } : {}) }),
   });
 }
