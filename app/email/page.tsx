@@ -30,16 +30,19 @@ export default async function EmailPage({ searchParams }: { searchParams: Promis
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect("/login");
 
-  const [{ data: customerData }, { count: totalCustomerCount }] = await Promise.all([
+  const [{ data: customerData }, { count: totalCustomerCount }, { data: emailFollowUps }] = await Promise.all([
     supabase
       .from("customers")
       .select("*")
+      .eq("is_excluded", false)
       .not("contact_email", "is", null)
       .neq("contact_email", "")
       .order("company", { ascending: true }),
-    supabase.from("customers").select("id", { count: "exact", head: true }),
+    supabase.from("customers").select("id", { count: "exact", head: true }).eq("is_excluded", false),
+    supabase.from("follow_ups").select("customer_id").ilike("channel", "email"),
   ]);
   const customers = (customerData ?? []) as Customer[];
+  const emailedCustomerIds = new Set((emailFollowUps ?? []).map((item) => item.customer_id));
   const priorityRank: Record<string, number> = { "A+": 0, A: 1, B: 2, C: 3, D: 4 };
 
   const systemConfigured = sharedGmailConfigured();
@@ -71,6 +74,8 @@ export default async function EmailPage({ searchParams }: { searchParams: Promis
       contact_email: customer.contact_email!,
       country: customer.country,
       priority: customer.priority,
+      website: customer.website,
+      email_sent: emailedCustomerIds.has(customer.id) || /已发送邮件|邮件已发送/i.test(customer.notes ?? ""),
     }))
     .sort(
       (left, right) =>

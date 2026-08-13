@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const DEFAULT_CC = "liqingyan777@gmail.com, samteng188@gmail.com";
@@ -11,15 +11,20 @@ export type EmailCustomerOption = {
   contact_email: string;
   country: string | null;
   priority: string;
+  website: string | null;
+  email_sent: boolean;
 };
 
 export function EmailComposer({ customers, totalCustomers }: { customers: EmailCustomerOption[]; totalCustomers: number }) {
   const router = useRouter();
-  const [customerId, setCustomerId] = useState(customers[0]?.id || "");
-  const [to, setTo] = useState(customers[0]?.contact_email || "");
+  const firstUnsentCustomer = customers.find((item) => !item.email_sent);
+  const [customerId, setCustomerId] = useState(firstUnsentCustomer?.id || "");
+  const [to, setTo] = useState(firstUnsentCustomer?.contact_email || "");
   const [cc, setCc] = useState(DEFAULT_CC);
   const [priorityFilter, setPriorityFilter] = useState("");
   const [customerSearch, setCustomerSearch] = useState("");
+  const [showSentCustomers, setShowSentCustomers] = useState(false);
+  const [sentCustomerIds, setSentCustomerIds] = useState(() => new Set(customers.filter((item) => item.email_sent).map((item) => item.id)));
   const [purpose, setPurpose] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -30,12 +35,20 @@ export function EmailComposer({ customers, totalCustomers }: { customers: EmailC
   const filteredCustomers = useMemo(() => {
     const keyword = customerSearch.trim().toLowerCase();
     return customers.filter((item) => {
+      const matchesSentStatus = showSentCustomers || !sentCustomerIds.has(item.id);
       const matchesPriority = !priorityFilter || item.priority === priorityFilter;
-      const matchesSearch = !keyword || [item.company, item.contact_email, item.country ?? ""]
+      const matchesSearch = !keyword || [item.company, item.contact_email, item.country ?? "", item.website ?? ""]
         .some((value) => value.toLowerCase().includes(keyword));
-      return matchesPriority && matchesSearch;
+      return matchesSentStatus && matchesPriority && matchesSearch;
     });
-  }, [customerSearch, customers, priorityFilter]);
+  }, [customerSearch, customers, priorityFilter, sentCustomerIds, showSentCustomers]);
+
+  useEffect(() => {
+    if (filteredCustomers.some((item) => item.id === customerId)) return;
+    const nextCustomer = filteredCustomers[0];
+    setCustomerId(nextCustomer?.id || "");
+    setTo(nextCustomer?.contact_email || "");
+  }, [customerId, filteredCustomers]);
 
   function selectCustomer(id: string) {
     const selected = customers.find((item) => item.id === id);
@@ -47,16 +60,6 @@ export function EmailComposer({ customers, totalCustomers }: { customers: EmailC
   function updateFilters(nextPriority: string, nextSearch: string) {
     setPriorityFilter(nextPriority);
     setCustomerSearch(nextSearch);
-    const keyword = nextSearch.trim().toLowerCase();
-    const nextCustomers = customers.filter((item) => {
-      const matchesPriority = !nextPriority || item.priority === nextPriority;
-      const matchesSearch = !keyword || [item.company, item.contact_email, item.country ?? ""]
-        .some((value) => value.toLowerCase().includes(keyword));
-      return matchesPriority && matchesSearch;
-    });
-    if (!nextCustomers.some((item) => item.id === customerId)) {
-      selectCustomer(nextCustomers[0]?.id || "");
-    }
   }
 
   async function generateDraft() {
@@ -103,11 +106,13 @@ export function EmailComposer({ customers, totalCustomers }: { customers: EmailC
       const data = await response.json() as { message?: string; error?: string };
       if (!response.ok) throw new Error(data.error || "邮件发送失败。");
       setStatus({ ok: true, message: data.message || "邮件已发送。" });
+      const nextSentCustomerIds = new Set(sentCustomerIds);
+      nextSentCustomerIds.add(customerId);
+      setSentCustomerIds(nextSentCustomerIds);
       setSubject("");
       setBody("");
       setPurpose("");
       form.reset();
-      setTo(customer?.contact_email || "");
       setCc(DEFAULT_CC);
       router.refresh();
     } catch (error) {
@@ -142,16 +147,23 @@ export function EmailComposer({ customers, totalCustomers }: { customers: EmailC
         />
       </label>
     </div>
-    <p className="customerFilterSummary">当前显示 {filteredCustomers.length} / {customers.length} 位已填写邮箱的客户</p>
+    <div className="customerFilterLine">
+      <p className="customerFilterSummary">当前显示 {filteredCustomers.length} / {customers.length} 位已填写邮箱的客户</p>
+      <label className="emailSentToggle">
+        <input type="checkbox" checked={showSentCustomers} onChange={(event) => setShowSentCustomers(event.target.checked)}/>
+        显示已发过邮件的客户（{sentCustomerIds.size}）
+      </label>
+    </div>
     <div className="composeRow">
       <label>选择客户
         <select name="customer_id" value={customerId} onChange={(event) => selectCustomer(event.target.value)} required>
-          {!filteredCustomers.length && <option value="">没有符合条件的客户</option>}
+          {!filteredCustomers.length && <option value="">没有待首次发送的客户，可勾选显示已发客户</option>}
           {filteredCustomers.map((item) => <option key={item.id} value={item.id}>{item.priority} · {item.company} · {item.contact_email}</option>)}
         </select>
       </label>
-      <label>收件人<input name="to" type="email" value={to} readOnly required/></label>
+      <label>收件人（可人工修改）<input name="to" type="email" value={to} onChange={(event) => setTo(event.target.value)} required/><small>修改仅用于本次发送，不会覆盖客户线索中的邮箱。</small></label>
     </div>
+    {customer?.website && <div className="selectedCustomerWebsite"><span>客户网站</span><a href={customer.website.match(/^https?:\/\//i) ? customer.website : `https://${customer.website}`} target="_blank" rel="noreferrer">{customer.website}</a><small>发送前可点击官网，再次确认客户与产品是否匹配。</small></div>}
     <label>抄送 CC（可选，多个邮箱用逗号分隔）<input name="cc" value={cc} onChange={(event) => setCc(event.target.value)} placeholder="manager@example.com"/></label>
     <div className="draftAssistant">
       <label>这封邮件想沟通什么（可选）

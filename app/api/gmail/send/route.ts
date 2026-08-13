@@ -31,12 +31,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "抄送邮箱格式不正确。" }, { status: 400 });
     }
 
-    const { data: customerData, error: customerError } = await supabase.from("customers").select("*").eq("id", customerId).single();
+    const { data: customerData, error: customerError } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("id", customerId)
+      .eq("is_excluded", false)
+      .single();
     if (customerError || !customerData) return NextResponse.json({ error: "客户线索不存在。" }, { status: 404 });
     const customer = customerData as Customer;
-    if (!customer.contact_email || customer.contact_email.trim().toLowerCase() !== to.toLowerCase()) {
-      return NextResponse.json({ error: "收件人必须是该客户在线索中登记的联系邮箱。" }, { status: 400 });
-    }
     const copyIssues = outboundCopyIssues(`${subject}\n${body}`, buildCustomerMessagingProfile(customer));
     if (copyIssues.length) {
       return NextResponse.json({
@@ -57,7 +59,7 @@ export async function POST(request: Request) {
     const { error: followUpError } = await supabase.from("follow_ups").insert({
       customer_id: customer.id,
       channel: "Email",
-      summary: `发送邮件：${subject}`,
+      summary: `发送邮件：${subject}（收件人：${to}）`,
       outcome: "无回复",
       next_action: "等待客户回复",
       happened_at: new Date().toISOString(),
