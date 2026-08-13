@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { eveningDressTemplate } from "@/lib/lead-intelligence/evening-dress";
 import { scoreLead } from "@/lib/lead-intelligence/score";
 import { searchWithSerper } from "@/lib/lead-intelligence/serper-connector";
+import { isExcludedLead, normalizedDomain } from "@/lib/lead-intelligence/exclusions";
 
 export const maxDuration = 60;
 
@@ -35,15 +36,6 @@ const marketPacks: Record<string, Array<keyof typeof markets>> = {
   gulf: ["United Arab Emirates", "Saudi Arabia"],
   turkey: ["Turkey"],
 };
-
-function normalizedDomain(website: string | null | undefined) {
-  if (!website) return "";
-  try {
-    return new URL(website).hostname.toLowerCase().replace(/^www\./, "");
-  } catch {
-    return website.toLowerCase().replace(/^https?:\/\/(www\.)?/, "").split("/")[0];
-  }
-}
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -104,7 +96,10 @@ export async function POST(request: Request) {
         .filter(Boolean),
     );
     const newCandidates = candidates.filter(
-      (candidate) => !knownWebsites.has(normalizedDomain(candidate.website)),
+      (candidate) => !knownWebsites.has(normalizedDomain(candidate.website)) && !isExcludedLead({
+        company: candidate.company,
+        website: candidate.website,
+      }),
     );
     const qualifiedLeads = newCandidates
       .map(scoreLead)

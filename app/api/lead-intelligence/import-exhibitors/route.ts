@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { eveningDressTemplate } from "@/lib/lead-intelligence/evening-dress";
 import { enrichExhibitor } from "@/lib/lead-intelligence/exhibitor-enrichment";
+import { isExcludedLead } from "@/lib/lead-intelligence/exclusions";
 import exhibitorData from "@/data/if-wedding-exhibitors.json";
 
 export const maxDuration = 60;
@@ -33,7 +34,13 @@ export async function POST(request: Request) {
   }
 
   const enriched = await Promise.all(seeds.map((seed) => enrichExhibitor(seed)));
-  const payload = enriched.map((lead) => ({
+  const payload = enriched
+    .filter((lead) => !isExcludedLead({
+      company: lead.company,
+      website: lead.website,
+      contactEmail: lead.contactEmail,
+    }))
+    .map((lead) => ({
     source_key: lead.id,
     search_job_id: job!.id,
     company: lead.company,
@@ -61,7 +68,7 @@ export async function POST(request: Request) {
     contact_sources: lead.contactSources,
     data_completeness: lead.dataCompleteness,
     review_status: "pending",
-  }));
+    }));
   const { error } = await supabase.from("discovered_leads").upsert(payload, { onConflict: "source_key" });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const nextOffset = offset + seeds.length;
@@ -74,4 +81,3 @@ export async function POST(request: Request) {
   }).eq("id", job.id);
   return NextResponse.json({ processed: seeds.length, nextOffset, total: exhibitorData.length, complete, imported: count ?? nextOffset });
 }
-

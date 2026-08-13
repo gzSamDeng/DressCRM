@@ -53,7 +53,7 @@ export default async function FollowUpPage({
   if (!auth.user) redirect("/login");
 
   const [{ data: customerData }, { data: followUpData }, { data: profileData }, { data: whatsappData }] = await Promise.all([
-    supabase.from("customers").select("*").order("company", { ascending: true }),
+    supabase.from("customers").select("*").eq("is_excluded", false).order("company", { ascending: true }),
     supabase.from("follow_ups").select("*").order("happened_at", { ascending: false }).limit(300),
     supabase.from("user_profiles").select("id,email,display_name"),
     supabase.from("whatsapp_messages").select("*").order("happened_at", { ascending: false }).limit(500),

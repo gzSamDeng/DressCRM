@@ -21,6 +21,9 @@ export type Customer = {
   source_url: string | null;
   notes: string | null;
   next_follow_up_at: string | null;
+  is_excluded: boolean;
+  exclusion_reason: string | null;
+  excluded_at: string | null;
   owner_id: string | null;
   assigned_by: string | null;
   assigned_at: string | null;

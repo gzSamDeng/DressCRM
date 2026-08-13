@@ -63,7 +63,7 @@ export default async function DashboardPage({ searchParams }: {
   const periodStart = period === "today" ? todayStart : period === "month" ? monthStart : weekStart;
 
   const [{ data: customers }, { data: followUps }, { data: signals }, { data: reviewedLeads }, { data: profiles }, { data: teams }] = await Promise.all([
-    supabase.from("customers").select("*"),
+    supabase.from("customers").select("*").eq("is_excluded", false),
     supabase.from("follow_ups").select("*").order("happened_at", { ascending: false }),
     supabase.from("customer_signals").select("*").order("created_at", { ascending: false }).limit(300),
     supabase.from("discovered_leads").select("id,company,review_status,reviewed_at,reviewed_by,created_at").gte("created_at", monthStart.toISOString()),

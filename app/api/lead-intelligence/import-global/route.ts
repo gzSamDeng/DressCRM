@@ -2,20 +2,12 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { eveningDressTemplate } from "@/lib/lead-intelligence/evening-dress";
 import globalLeadReport from "@/data/global-evening-dress-leads.generated.json";
+import { isExcludedLead, normalizedDomain } from "@/lib/lead-intelligence/exclusions";
 
 export const maxDuration = 60;
 
 const sourceName = "全球晚礼服买家搜索 · 2026-08-08";
 const jobQuery = "Global Evening Dress Buyer Search 2026-08-08";
-
-function normalizedDomain(website: string | null | undefined) {
-  if (!website) return "";
-  try {
-    return new URL(website).hostname.toLowerCase().replace(/^www\./, "");
-  } catch {
-    return website.toLowerCase().replace(/^https?:\/\/(www\.)?/, "").split("/")[0];
-  }
-}
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -62,7 +54,9 @@ export async function POST(request: Request) {
       .filter(Boolean),
   );
   const newSeeds = seeds.filter((lead) =>
-    !knownSourceKeys.has(lead.source_key) && !knownDomains.has(normalizedDomain(lead.website)),
+    !knownSourceKeys.has(lead.source_key)
+    && !knownDomains.has(normalizedDomain(lead.website))
+    && !isExcludedLead({ company: lead.company, website: lead.website, contactEmail: lead.contact_email }),
   );
 
   if (newSeeds.length) {

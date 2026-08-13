@@ -18,7 +18,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
     : { data: [] };
   const ownerOptions = (profileData ?? []) as AppProfile[];
   const ownerMap = new Map(ownerOptions.map((profile) => [profile.id, profile.display_name || profile.email || "未命名业务员"]));
-  let query = supabase.from("customers").select("*", { count: "exact" });
+  let query = supabase.from("customers").select("*", { count: "exact" }).eq("is_excluded", false);
   const safeSearch = params.q?.trim().replace(/[,%()]/g, " ");
   if (safeSearch) query = query.or(`company.ilike.%${safeSearch}%,customer_type.ilike.%${safeSearch}%,notes.ilike.%${safeSearch}%`);
   if (params.priority) query = query.eq("priority", params.priority);
@@ -38,10 +38,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
   );
   const customers = sortedCustomers.slice((page - 1) * pageSize, page * pageSize);
 
-  const { count: total } = await supabase.from("customers").select("*", { count: "exact", head: true });
-  const { count: ap } = await supabase.from("customers").select("*", { count: "exact", head: true }).eq("priority","A+");
-  const { count: premium } = await supabase.from("customers").select("*", { count: "exact", head: true }).gte("premium_fit",90);
-  const { count: couture } = await supabase.from("customers").select("*", { count: "exact", head: true }).gte("couture_fit",90);
+  const { count: total } = await supabase.from("customers").select("*", { count: "exact", head: true }).eq("is_excluded", false);
+  const { count: ap } = await supabase.from("customers").select("*", { count: "exact", head: true }).eq("is_excluded", false).eq("priority","A+");
+  const { count: premium } = await supabase.from("customers").select("*", { count: "exact", head: true }).eq("is_excluded", false).gte("premium_fit",90);
+  const { count: couture } = await supabase.from("customers").select("*", { count: "exact", head: true }).eq("is_excluded", false).gte("couture_fit",90);
   const pageCount = Math.max(1, Math.ceil((filteredTotal ?? 0) / pageSize));
   const pageHref = (nextPage: number) => {
     const next = new URLSearchParams();
