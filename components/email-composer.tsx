@@ -13,18 +13,37 @@ export type EmailCustomerOption = {
   priority: string;
   website: string | null;
   email_sent: boolean;
+  email_due: boolean;
+  last_email_at: string | null;
+  next_email_at: string | null;
+  cadence_days: number;
+  has_replied: boolean;
+  overdue_days: number | null;
+  timing_status: "first_contact" | "due" | "today" | "upcoming" | "unknown";
 };
+
+function formatDate(value: string | null) {
+  return value ? new Date(value).toLocaleDateString("zh-CN", { timeZone: "Asia/Shanghai" }) : "—";
+}
+
+function timingCopy(customer: EmailCustomerOption) {
+  if (customer.timing_status === "first_contact") return "从未发送过邮件，建议现在进行首次联系";
+  if (customer.timing_status === "unknown") return "历史记录显示已发送，但缺少发送日期，请人工确认后决定是否再次联系";
+  if (customer.timing_status === "due") return `已超过建议发送时间 ${customer.overdue_days} 天`;
+  if (customer.timing_status === "today") return "今天达到建议发送时间";
+  return `距离建议发送时间还有 ${Math.abs(customer.overdue_days ?? 0)} 天`;
+}
 
 export function EmailComposer({ customers, totalCustomers }: { customers: EmailCustomerOption[]; totalCustomers: number }) {
   const router = useRouter();
-  const firstUnsentCustomer = customers.find((item) => !item.email_sent);
-  const [customerId, setCustomerId] = useState(firstUnsentCustomer?.id || "");
-  const [to, setTo] = useState(firstUnsentCustomer?.contact_email || "");
+  const firstDueCustomer = customers.find((item) => item.email_due);
+  const [customerId, setCustomerId] = useState(firstDueCustomer?.id || "");
+  const [to, setTo] = useState(firstDueCustomer?.contact_email || "");
   const [cc, setCc] = useState(DEFAULT_CC);
   const [priorityFilter, setPriorityFilter] = useState("");
   const [customerSearch, setCustomerSearch] = useState("");
-  const [showSentCustomers, setShowSentCustomers] = useState(false);
-  const [sentCustomerIds, setSentCustomerIds] = useState(() => new Set(customers.filter((item) => item.email_sent).map((item) => item.id)));
+  const [showNotDueCustomers, setShowNotDueCustomers] = useState(false);
+  const [justSentAt, setJustSentAt] = useState<Record<string, string>>({});
   const [purpose, setPurpose] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -35,13 +54,13 @@ export function EmailComposer({ customers, totalCustomers }: { customers: EmailC
   const filteredCustomers = useMemo(() => {
     const keyword = customerSearch.trim().toLowerCase();
     return customers.filter((item) => {
-      const matchesSentStatus = showSentCustomers || !sentCustomerIds.has(item.id);
+      const matchesDueStatus = showNotDueCustomers || (item.email_due && !justSentAt[item.id]);
       const matchesPriority = !priorityFilter || item.priority === priorityFilter;
       const matchesSearch = !keyword || [item.company, item.contact_email, item.country ?? "", item.website ?? ""]
         .some((value) => value.toLowerCase().includes(keyword));
-      return matchesSentStatus && matchesPriority && matchesSearch;
+      return matchesDueStatus && matchesPriority && matchesSearch;
     });
-  }, [customerSearch, customers, priorityFilter, sentCustomerIds, showSentCustomers]);
+  }, [customerSearch, customers, justSentAt, priorityFilter, showNotDueCustomers]);
 
   useEffect(() => {
     if (filteredCustomers.some((item) => item.id === customerId)) return;
@@ -106,9 +125,7 @@ export function EmailComposer({ customers, totalCustomers }: { customers: EmailC
       const data = await response.json() as { message?: string; error?: string };
       if (!response.ok) throw new Error(data.error || "邮件发送失败。");
       setStatus({ ok: true, message: data.message || "邮件已发送。" });
-      const nextSentCustomerIds = new Set(sentCustomerIds);
-      nextSentCustomerIds.add(customerId);
-      setSentCustomerIds(nextSentCustomerIds);
+      setJustSentAt((current) => ({ ...current, [customerId]: new Date().toISOString() }));
       setSubject("");
       setBody("");
       setPurpose("");
@@ -150,19 +167,29 @@ export function EmailComposer({ customers, totalCustomers }: { customers: EmailC
     <div className="customerFilterLine">
       <p className="customerFilterSummary">当前显示 {filteredCustomers.length} / {customers.length} 位已填写邮箱的客户</p>
       <label className="emailSentToggle">
-        <input type="checkbox" checked={showSentCustomers} onChange={(event) => setShowSentCustomers(event.target.checked)}/>
-        显示已发过邮件的客户（{sentCustomerIds.size}）
+        <input type="checkbox" checked={showNotDueCustomers} onChange={(event) => setShowNotDueCustomers(event.target.checked)}/>
+        显示尚未到期及日期不明的客户（{customers.filter((item) => !item.email_due).length}）
       </label>
     </div>
     <div className="composeRow">
       <label>选择客户
         <select name="customer_id" value={customerId} onChange={(event) => selectCustomer(event.target.value)} required>
-          {!filteredCustomers.length && <option value="">没有待首次发送的客户，可勾选显示已发客户</option>}
-          {filteredCustomers.map((item) => <option key={item.id} value={item.id}>{item.priority} · {item.company} · {item.contact_email}</option>)}
+          {!filteredCustomers.length && <option value="">当前没有到期客户，可勾选显示尚未到期客户</option>}
+          {filteredCustomers.map((item) => <option key={item.id} value={item.id}>{item.priority} · {item.company} · {item.contact_email}{item.email_due ? " · 待发送" : ""}</option>)}
         </select>
       </label>
       <label>收件人（可人工修改）<input name="to" type="email" value={to} onChange={(event) => setTo(event.target.value)} required/><small>修改仅用于本次发送，不会覆盖客户线索中的邮箱。</small></label>
     </div>
+    {customer && (() => {
+      const sentNow = justSentAt[customer.id];
+      const nextAfterSend = sentNow ? new Date(new Date(sentNow).getTime() + customer.cadence_days * 86_400_000).toISOString() : null;
+      return <div className={`emailCadenceNotice ${customer.email_due && !sentNow ? "due" : "upcoming"}`}>
+      <div><span>上次发送</span><strong>{sentNow ? formatDate(sentNow) : customer.email_sent ? formatDate(customer.last_email_at) : "尚未发送"}</strong></div>
+      <div><span>建议下次发送</span><strong>{nextAfterSend ? formatDate(nextAfterSend) : customer.next_email_at ? formatDate(customer.next_email_at) : customer.email_sent ? "日期待确认" : "现在"}</strong></div>
+      <div><span>系统周期</span><strong>{customer.cadence_days} 天 · {customer.has_replied ? "客户曾回复" : "客户未回复"}</strong></div>
+      <p>{sentNow ? `本次邮件已发送，下次建议在 ${formatDate(nextAfterSend)} 联系` : timingCopy(customer)}</p>
+    </div>;
+    })()}
     {customer?.website && <div className="selectedCustomerWebsite"><span>客户网站</span><a href={customer.website.match(/^https?:\/\//i) ? customer.website : `https://${customer.website}`} target="_blank" rel="noreferrer">{customer.website}</a><small>发送前可点击官网，再次确认客户与产品是否匹配。</small></div>}
     <label>抄送 CC（可选，多个邮箱用逗号分隔）<input name="cc" value={cc} onChange={(event) => setCc(event.target.value)} placeholder="manager@example.com"/></label>
     <div className="draftAssistant">

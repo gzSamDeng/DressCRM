@@ -2,10 +2,11 @@ import { redirect } from "next/navigation";
 import { EmailComposer, type EmailCustomerOption } from "@/components/email-composer";
 import { FollowUpTabs } from "@/components/follow-up-tabs";
 import { Header } from "@/components/header";
+import { buildEmailCadence } from "@/lib/email-cadence";
 import { listCustomerMessages, type GmailMessageSummary } from "@/lib/gmail";
 import { getSharedGmailAccount, isEmailAdmin, sharedGmailAddress, sharedGmailConfigured } from "@/lib/shared-gmail";
 import { createClient } from "@/lib/supabase/server";
-import type { Customer } from "@/types/database";
+import type { Customer, FollowUp } from "@/types/database";
 import "./email.css";
 import "./email-enhancements.css";
 import "../follow-up/follow-up.css";
@@ -30,7 +31,7 @@ export default async function EmailPage({ searchParams }: { searchParams: Promis
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect("/login");
 
-  const [{ data: customerData }, { count: totalCustomerCount }, { data: emailFollowUps }] = await Promise.all([
+  const [{ data: customerData }, { count: totalCustomerCount }, { data: followUpData }] = await Promise.all([
     supabase
       .from("customers")
       .select("*")
@@ -39,10 +40,10 @@ export default async function EmailPage({ searchParams }: { searchParams: Promis
       .neq("contact_email", "")
       .order("company", { ascending: true }),
     supabase.from("customers").select("id", { count: "exact", head: true }).eq("is_excluded", false),
-    supabase.from("follow_ups").select("customer_id").ilike("channel", "email"),
+    supabase.from("follow_ups").select("*").order("happened_at", { ascending: false }),
   ]);
   const customers = (customerData ?? []) as Customer[];
-  const emailedCustomerIds = new Set((emailFollowUps ?? []).map((item) => item.customer_id));
+  const followUps = (followUpData ?? []) as FollowUp[];
   const priorityRank: Record<string, number> = { "A+": 0, A: 1, B: 2, C: 3, D: 4 };
 
   const systemConfigured = sharedGmailConfigured();
@@ -67,23 +68,37 @@ export default async function EmailPage({ searchParams }: { searchParams: Promis
     }
   }
 
+  const now = new Date();
   const options: EmailCustomerOption[] = customers
-    .map((customer) => ({
-      id: customer.id,
-      company: customer.company,
-      contact_email: customer.contact_email!,
-      country: customer.country,
-      priority: customer.priority,
-      website: customer.website,
-      email_sent: emailedCustomerIds.has(customer.id) || /已发送邮件|邮件已发送/i.test(customer.notes ?? ""),
-    }))
+    .map((customer) => {
+      const cadence = buildEmailCadence(customer, followUps, now);
+      return {
+        id: customer.id,
+        company: customer.company,
+        contact_email: customer.contact_email!,
+        country: customer.country,
+        priority: customer.priority,
+        website: customer.website,
+        email_sent: cadence.emailSent,
+        email_due: cadence.emailDue,
+        last_email_at: cadence.lastEmailAt,
+        next_email_at: cadence.nextEmailAt,
+        cadence_days: cadence.cadenceDays,
+        has_replied: cadence.hasReplied,
+        overdue_days: cadence.overdueDays,
+        timing_status: cadence.timingStatus,
+      };
+    })
     .sort(
       (left, right) =>
+        Number(right.email_due) - Number(left.email_due) ||
+        (right.overdue_days ?? -9999) - (left.overdue_days ?? -9999) ||
         (priorityRank[left.priority] ?? 99) - (priorityRank[right.priority] ?? 99) ||
         left.company.localeCompare(right.company),
     );
   const approvedCount = totalCustomerCount ?? customers.length;
   const missingEmailCount = Math.max(approvedCount - customers.length, 0);
+  const dueEmailCount = options.filter((item) => item.email_due).length;
   const sender = sharedGmailAddress();
 
   return <div className="shell"><Header/><main className="container emailPage">
@@ -112,6 +127,7 @@ export default async function EmailPage({ searchParams }: { searchParams: Promis
         <div className="emailCustomerStats" aria-label="邮件客户数据说明">
           <div><strong>{approvedCount}</strong><span>当前可见客户</span></div>
           <div><strong>{customers.length}</strong><span>可发邮件客户</span></div>
+          <div><strong>{dueEmailCount}</strong><span>当前待发邮件</span></div>
           <div><strong>{missingEmailCount}</strong><span>缺少联系邮箱</span></div>
         </div>
         <EmailComposer customers={options} totalCustomers={approvedCount}/>

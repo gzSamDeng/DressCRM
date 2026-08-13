@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
-import { coldCadenceDays } from "@/lib/follow-up-priority";
+import { coldCadenceDays, engagedCadenceDays } from "@/lib/follow-up-priority";
 import { buildRawEmail, sendGmailMessage } from "@/lib/gmail";
 import { getSharedGmailAccount } from "@/lib/shared-gmail";
 import { createClient } from "@/lib/supabase/server";
@@ -67,7 +67,13 @@ export async function POST(request: Request) {
     });
     if (followUpError) return NextResponse.json({ error: `邮件已发送，但跟进记录写入失败：${followUpError.message}`, sent: true }, { status: 500 });
 
-    const cadenceDays = coldCadenceDays[customer.priority] ?? 30;
+    const { data: replyHistory } = await supabase
+      .from("follow_ups")
+      .select("outcome")
+      .eq("customer_id", customer.id)
+      .in("outcome", ["已回复", "有兴趣", "要求报价", "要求样品", "采购计划明确"])
+      .limit(1);
+    const cadenceDays = (replyHistory?.length ? engagedCadenceDays : coldCadenceDays)[customer.priority] ?? 30;
     await supabase.from("customers").update({
       next_follow_up_at: new Date(Date.now() + cadenceDays * 86_400_000).toISOString(),
       stage: customer.stage === "New Lead" ? "Contacted" : customer.stage,
