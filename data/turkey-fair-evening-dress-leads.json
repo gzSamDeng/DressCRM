@@ -1,0 +1,212 @@
+{
+  "source": "Turkey fair calendar research · IFCO 2026",
+  "leads": [
+    {
+      "source_key": "turkey-fair-ifco-2026:er-cool",
+      "company": "ER-COOL",
+      "aliases": ["ER-COOL COLLECTION", "ER-COOL COLLECTION YÜKSEL ERMAN"],
+      "website": "https://wholesale.er-cool.com.tr",
+      "country": "Turkey",
+      "city": "İstanbul",
+      "customer_type": "Evening Dress Wholesaler / Brand",
+      "ai_score": 76,
+      "ai_grade": "A",
+      "confidence": "High",
+      "contact_email": "ercoolbutik@gmail.com",
+      "contact_phone": "+90 541 871 9882",
+      "whatsapp": "+90 541 871 9882",
+      "telegram": "",
+      "instagram": "",
+      "source_url": "https://www.ifco.com.tr/fair/exhibitors/er-cool/detail",
+      "signals": ["evening_dress_focus", "wholesale", "private_label_sourcing", "physical_stores", "international_brands"],
+      "evidence": [
+        "IFCO 2026 official profile lists ER-COOL as a women's dress and evening-dress wholesaler with Sourcing (Private Label) = Yes.",
+        "The official IFCO profile lists two İstanbul locations and the brand's wholesale website.",
+        "Public ER-COOL storefront contact: ercoolbutik@gmail.com and +90 541 871 9882."
+      ],
+      "risks": ["Also operates as a Turkish manufacturer; confirm interest in outsourced China production before quoting."],
+      "recommendation": "重点核实其外包生产需求，先展示简约高级及大码晚礼服开发能力。",
+      "contact_sources": [
+        "https://www.ifco.com.tr/fair/exhibitors/er-cool/detail",
+        "https://www.shopier.com/ercoolbutik",
+        "https://wholesale.er-cool.com.tr"
+      ]
+    },
+    {
+      "source_key": "turkey-fair-ifco-2026:attar-fashion",
+      "company": "ATTAR FASHION",
+      "aliases": ["ATTAR FASHION DRESSES", "ATTAR FASHION GROUP TEKSTİL"],
+      "website": "https://t.me/attarfashion",
+      "country": "Turkey",
+      "city": "İstanbul",
+      "customer_type": "Evening Dress Brand / Private Label Buyer",
+      "ai_score": 74,
+      "ai_grade": "A",
+      "confidence": "High",
+      "contact_email": "attarfashiongroup@gmail.com",
+      "contact_phone": "+90 539 834 9205",
+      "whatsapp": "+90 539 834 9205",
+      "telegram": "https://t.me/attarfashion",
+      "instagram": "",
+      "source_url": "https://www.ifco.com.tr/fair/exhibitors/attar-fashion/detail",
+      "signals": ["evening_dress_focus", "wedding_dress_focus", "private_label_sourcing", "international_brands", "active_social"],
+      "evidence": [
+        "IFCO 2026 official profile identifies ATTAR FASHION as an evening- and wedding-dress brand with Sourcing (Private Label) = Yes.",
+        "Official IFCO product page publishes attarfashiongroup@gmail.com and WhatsApp +90 539 834 9205.",
+        "The brand's public Telegram channel states worldwide shipping."
+      ],
+      "risks": ["No independent company website was found; verify the decision maker and current buying model through WhatsApp."],
+      "recommendation": "优先用 WhatsApp 联系，确认其是否外采重工礼服或需要中国供应链补充款式。",
+      "contact_sources": [
+        "https://www.ifco.com.tr/fair/exhibitors/attar-fashion/detail",
+        "https://www.ifco.com.tr/fair/products/attar-fashion-wedding-dress-2523",
+        "https://t.me/attarfashion"
+      ]
+    },
+    {
+      "source_key": "turkey-fair-ifco-2026:takwa-moda-group",
+      "company": "TAKWA MODA GROUP",
+      "aliases": ["TAKWA MODA", "TAKWA MODA TEKSTİL VE DIŞ TİC"],
+      "website": "https://t.me/TAKWAGROUP",
+      "country": "Turkey",
+      "city": "İstanbul",
+      "customer_type": "Designer Brand / Private Label Buyer",
+      "ai_score": 64,
+      "ai_grade": "B",
+      "confidence": "Medium",
+      "contact_email": "",
+      "contact_phone": "",
+      "whatsapp": "",
+      "telegram": "https://t.me/TAKWAGROUP",
+      "instagram": "",
+      "source_url": "https://www.ifco.com.tr/fair/exhibitors/takwa-moda-group/detail",
+      "signals": ["evening_dress_focus", "private_label_sourcing", "designer_brand", "international_brands", "active_social"],
+      "evidence": [
+        "IFCO 2026 official profile lists TAKWA MODA GROUP under apparel and evening dresses with Sourcing (Private Label) = Yes.",
+        "The official profile names Muhammed Vael Ghazal as representative and lists target markets including France, Algeria, Iraq and Morocco.",
+        "The official profile publishes the TAKWA GROUP Telegram channel."
+      ],
+      "risks": ["No public email or phone was confirmed; contact completeness is limited."],
+      "recommendation": "先通过 Telegram 核实采购负责人及外采需求，再决定是否升级为 A 级。",
+      "contact_sources": [
+        "https://www.ifco.com.tr/fair/exhibitors/takwa-moda-group/detail",
+        "https://t.me/TAKWAGROUP"
+      ]
+    },
+    {
+      "source_key": "turkey-fair-ifco-2026:relactive",
+      "company": "RELACTIVE",
+      "aliases": ["YÖREK TEKSTİL", "YÖREK İNŞ.TEKSTİL SAN.VE TİC.A.Ş."],
+      "website": "https://www.relactive.com",
+      "country": "Turkey",
+      "city": "İzmir",
+      "customer_type": "Evening & Wedding Dress Brand / Private Label Buyer",
+      "ai_score": 70,
+      "ai_grade": "A",
+      "confidence": "High",
+      "contact_email": "info@relactive.com",
+      "contact_phone": "+90 232 489 52 30",
+      "whatsapp": "",
+      "telegram": "",
+      "instagram": "",
+      "source_url": "https://www.ifco.com.tr/fair/exhibitors/relactive/detail",
+      "signals": ["evening_dress_focus", "wedding_dress_focus", "private_label_sourcing", "international_brands"],
+      "evidence": [
+        "IFCO 2026 official profile lists RELACTIVE in evening and wedding dresses with Sourcing (Private Label) = Yes.",
+        "IF Wedding's official catalog publishes info@relactive.com and +90 232 489 52 30.",
+        "The company maintains a current official website and contact page."
+      ],
+      "risks": ["Public direct contact details originate from an earlier official fair catalog; verify before outreach."],
+      "recommendation": "核实其中国外采计划，重点介绍重工礼服及稳定品质控制能力。",
+      "contact_sources": [
+        "https://www.ifco.com.tr/fair/exhibitors/relactive/detail",
+        "https://ifwedding.izfas.com.tr/images2/img/1796/File/ifwf_katalog_2021_digital.pdf",
+        "https://online.relactive.com/contactus"
+      ]
+    },
+    {
+      "source_key": "turkey-fair-ifco-2026:maxra-govana",
+      "company": "MAXRA GOVANA",
+      "aliases": ["MAXRA GOVANA BRIDAL", "AYTENLER GİYİM"],
+      "website": "https://www.maxragovana.com",
+      "country": "Turkey",
+      "city": "İstanbul",
+      "customer_type": "Evening Dress Brand / Private Label Buyer",
+      "ai_score": 72,
+      "ai_grade": "A",
+      "confidence": "High",
+      "contact_email": "",
+      "contact_phone": "",
+      "whatsapp": "",
+      "telegram": "",
+      "instagram": "",
+      "source_url": "https://www.ifco.com.tr/fair/exhibitors/maxra-govana/detail",
+      "signals": ["evening_dress_focus", "wedding_dress_focus", "private_label_sourcing", "premium_positioning"],
+      "evidence": [
+        "IFCO 2026 official profile lists MAXRA GOVANA as a brand and manufacturer with Sourcing (Private Label) = Yes.",
+        "The official profile lists evening dresses, wedding dresses, oversize styles and product development services."
+      ],
+      "risks": ["Likely already present from IF Wedding research; live database deduplication is required."],
+      "recommendation": "如未重复，优先匹配大码和重工礼服供应能力。",
+      "contact_sources": [
+        "https://www.ifco.com.tr/fair/exhibitors/maxra-govana/detail",
+        "https://www.maxragovana.com"
+      ]
+    },
+    {
+      "source_key": "turkey-fair-ifco-2026:balerina",
+      "company": "BALERİNA",
+      "aliases": ["ANEMON TEKS", "ANEMON TEKS.SAN.VE DIŞ.TİC.LTD.ŞTİ."],
+      "website": "https://www.balerina.com.tr",
+      "country": "Turkey",
+      "city": "İstanbul",
+      "customer_type": "Evening Dress Brand / Private Label Buyer",
+      "ai_score": 70,
+      "ai_grade": "A",
+      "confidence": "High",
+      "contact_email": "",
+      "contact_phone": "",
+      "whatsapp": "",
+      "telegram": "",
+      "instagram": "",
+      "source_url": "https://www.ifco.com.tr/fair/exhibitors/balerina/detail",
+      "signals": ["evening_dress_focus", "wedding_dress_focus", "private_label_sourcing"],
+      "evidence": [
+        "IFCO 2026 official profile lists BALERİNA as an evening- and wedding-dress brand with Sourcing (Private Label) = Yes."
+      ],
+      "risks": ["Already present in the original IF Wedding exhibitor research; live database deduplication is required."],
+      "recommendation": "仅在数据库确认无重复时进入待审核。",
+      "contact_sources": [
+        "https://www.ifco.com.tr/fair/exhibitors/balerina/detail",
+        "https://www.balerina.com.tr"
+      ]
+    },
+    {
+      "source_key": "turkey-fair-ifco-2026:arsi",
+      "company": "ARŞİ",
+      "aliases": ["ARŞİ ABİYE", "ARŞİ HAZIR GİYİM"],
+      "website": "",
+      "country": "Turkey",
+      "city": "İstanbul",
+      "customer_type": "Evening Dress Brand / Private Label Buyer",
+      "ai_score": 63,
+      "ai_grade": "B",
+      "confidence": "Medium",
+      "contact_email": "",
+      "contact_phone": "",
+      "whatsapp": "",
+      "telegram": "",
+      "instagram": "",
+      "source_url": "https://www.ifco.com.tr/fair/exhibitors/arsi/detail",
+      "signals": ["evening_dress_focus", "private_label_sourcing"],
+      "evidence": [
+        "IFCO 2026 official profile lists ARŞİ as an evening-dress brand with Sourcing (Private Label) = Yes."
+      ],
+      "risks": ["Likely already present as ARŞİ ABİYE and has no confirmed public contact information."],
+      "recommendation": "仅在数据库确认无重复且后续补齐联系方式时进入待审核。",
+      "contact_sources": [
+        "https://www.ifco.com.tr/fair/exhibitors/arsi/detail"
+      ]
+    }
+  ]
+}
