@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { eveningDressTemplate } from "@/lib/lead-intelligence/evening-dress";
 import { isExcludedLead, normalizedDomain } from "@/lib/lead-intelligence/exclusions";
+import { formatEvidenceList } from "@/lib/lead-intelligence/evidence";
 import fairLeadReport from "@/data/turkey-fair-evening-dress-leads.json";
 
 export const maxDuration = 60;
@@ -151,7 +152,7 @@ export async function POST(request: Request) {
     ai_grade: lead.ai_grade,
     confidence: lead.confidence,
     signals: lead.signals,
-    evidence: lead.evidence,
+    evidence: formatEvidenceList(lead.evidence),
     risks: lead.risks,
     recommendation: lead.recommendation,
     source_url: lead.source_url,

@@ -3,6 +3,7 @@ import { LeadIntelligenceWorkbench } from "@/components/lead-intelligence-workbe
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { approveDiscoveredLead, rejectDiscoveredLead } from "@/app/actions";
+import { formatEvidenceList } from "@/lib/lead-intelligence/evidence";
 import "./lead-intelligence.css";
 
 type CustomsRecord = {
@@ -13,7 +14,7 @@ type CustomsRecord = {
 
 type DiscoveredLead = {
   id: string; company: string; website: string | null; country: string | null; city: string | null;
-  customer_type: string | null; ai_score: number; ai_grade: string; evidence: string[]; risks: string[];
+  customer_type: string | null; ai_score: number; ai_grade: string; evidence: unknown; risks: string[];
   source_url: string | null; contact_name: string | null; contact_email: string | null;
   contact_phone: string | null; whatsapp: string | null; instagram: string | null;
   facebook: string | null; linkedin: string | null; exhibitor_source: string | null;
@@ -75,7 +76,7 @@ export default async function LeadIntelligencePage({ searchParams }: {
               <td><strong>{lead.company}</strong><small>{[lead.city, lead.country].filter(Boolean).join(" · ") || "地区待确认"}</small>{lead.customs_import_count > 0 && <span className="customsBadge">海关进口数据</span>}{lead.customs_import_count > 0 && <small>{lead.customs_import_count} 次进口 · 最近 {lead.latest_customs_import_at}</small>}{lead.exhibitor_source && lead.lead_source !== "customs_import" && <small>{lead.exhibitor_source}</small>}{lead.website && <a href={lead.website} target="_blank" rel="noreferrer">{lead.website}</a>}</td>
             <td>{lead.customer_type || "待确认"}</td>
             <td><div className="contactStack">{lead.contact_name && <span>{lead.contact_name}</span>}{lead.contact_email && <a href={`mailto:${lead.contact_email}`}>{lead.contact_email}</a>}{lead.contact_phone && <span>{lead.contact_phone}</span>}{lead.whatsapp && <span>WhatsApp: {lead.whatsapp}</span>}{lead.instagram && <a href={lead.instagram} target="_blank" rel="noreferrer">Instagram</a>}{lead.facebook && <a href={lead.facebook} target="_blank" rel="noreferrer">Facebook</a>}{lead.linkedin && <a href={lead.linkedin} target="_blank" rel="noreferrer">LinkedIn</a>}{!lead.contact_email && !lead.contact_phone && !lead.whatsapp && !lead.instagram && <small>尚未找到直接联系方式</small>}</div></td>
-            <td><details><summary>站内查看证据</summary><div className="evidencePanel">{lead.evidence?.map((item) => <p key={item}>{item}</p>)}{lead.risks?.map((risk) => <p className="riskSignal" key={risk}>! {risk}</p>)}{lead.source_url && <a href={lead.source_url} target="_blank" rel="noreferrer">打开原始网页</a>}</div></details>{customsRecords.length > 0 && <details className="customsDetails"><summary>查看 {customsRecords.length} 条进口时间记录</summary><div>{customsRecords.map((record) => <article key={record.id}><strong>{record.import_date}</strong><span>HS {record.hs_code || "—"} · {record.quantity_raw || record.weight_raw || "数量未公开"}</span><p>{record.product_description || "礼服进口记录"}</p>{record.supplier_name && <small>中国供应商：{record.supplier_name}</small>}</article>)}</div></details>}</td>
+            <td><details><summary>站内查看证据</summary><div className="evidencePanel">{formatEvidenceList(lead.evidence).map((item, index) => <p key={`${index}-${item}`}>{item}</p>)}{lead.risks?.map((risk) => <p className="riskSignal" key={risk}>! {risk}</p>)}{lead.source_url && <a href={lead.source_url} target="_blank" rel="noreferrer">打开原始网页</a>}</div></details>{customsRecords.length > 0 && <details className="customsDetails"><summary>查看 {customsRecords.length} 条进口时间记录</summary><div>{customsRecords.map((record) => <article key={record.id}><strong>{record.import_date}</strong><span>HS {record.hs_code || "—"} · {record.quantity_raw || record.weight_raw || "数量未公开"}</span><p>{record.product_description || "礼服进口记录"}</p>{record.supplier_name && <small>中国供应商：{record.supplier_name}</small>}</article>)}</div></details>}</td>
             <td>{status === "pending" ? <div className="reviewActions"><form action={approveDiscoveredLead.bind(null, lead.id)}><button className="approveButton">批准进入 CRM</button></form><form action={rejectDiscoveredLead.bind(null, lead.id)}><button className="rejectButton">拒绝</button></form></div> : <span>{status === "approved" ? "已批准" : "已拒绝"}</span>}</td>
           </tr>;
         })}

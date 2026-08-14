@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createCustomer } from "@/app/actions";
 import { eveningDressTemplate } from "@/lib/lead-intelligence/evening-dress";
 import type { ScoredLead } from "@/lib/lead-intelligence/types";
+import { formatEvidenceList } from "@/lib/lead-intelligence/evidence";
 
 type RunState = "ready" | "searching" | "complete";
 
@@ -165,7 +166,7 @@ export function LeadIntelligenceWorkbench() {
                   <div className="leadActions">
                     <details className="evidenceDetails">
                       <summary>查看证据</summary>
-                      <div>{lead.evidence.map((item) => <p key={item}>{item}</p>)}</div>
+                      <div>{formatEvidenceList(lead.evidence).map((item, itemIndex) => <p key={`${itemIndex}-${item}`}>{item}</p>)}</div>
                       {lead.sourceUrl && <a href={lead.sourceUrl} target="_blank" rel="noreferrer">打开原始网页（可能受网站限制）</a>}
                     </details>
                     <form action={createCustomer}>
@@ -176,7 +177,7 @@ export function LeadIntelligenceWorkbench() {
                       <input type="hidden" name="premium_fit" value={lead.score} /><input type="hidden" name="couture_fit" value={Math.max(0, lead.score - 8)} />
                       <input type="hidden" name="import_probability" value={lead.signals.includes("importer") ? "High" : "Needs verification"} />
                       <input type="hidden" name="buyer_value" value={`AI Score ${lead.score} · ${lead.grade}`} />
-                      <input type="hidden" name="recommended_line" value={lead.recommendation} /><input type="hidden" name="evidence" value={lead.evidence.join("\n")} />
+                      <input type="hidden" name="recommended_line" value={lead.recommendation} /><input type="hidden" name="evidence" value={formatEvidenceList(lead.evidence).join("\n")} />
                       <input type="hidden" name="source_url" value={lead.sourceUrl} /><input type="hidden" name="notes" value="由 AI Lead Intelligence MVP 发现并审批进入 CRM。" />
                       <button type="submit">批准进入 CRM</button>
                     </form>
