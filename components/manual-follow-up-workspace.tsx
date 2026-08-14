@@ -17,11 +17,30 @@ export type FollowUpCustomerOption = {
   website: string | null;
   whatsapp_contacted: boolean;
   instagram_contacted: boolean;
+  email_contacted: boolean;
   notes: string | null;
   next_follow_up_at: string | null;
 };
 
 const initialState: FollowUpActionState = { ok: false, message: "" };
+
+function matchesCustomerFilters(item: FollowUpCustomerOption, filters: {
+  channel: ManualChannel;
+  isContactHistoryChannel: boolean;
+  showContactedCustomers: boolean;
+  onlyCustomersWithoutEmailOutreach: boolean;
+  contactedCustomerIds: Set<string>;
+  priority: string;
+  search: string;
+}) {
+  const keyword = filters.search.trim().toLowerCase();
+  return (!filters.isContactHistoryChannel || filters.showContactedCustomers || !filters.contactedCustomerIds.has(item.id))
+    && (filters.channel !== "WhatsApp" || !filters.onlyCustomersWithoutEmailOutreach || !item.email_contacted)
+    && (!filters.priority || item.priority === filters.priority)
+    && (!keyword || [item.company, item.country || "", item.contact_email || "", item.whatsapp || "", item.instagram || "", item.website || ""]
+      .some((value) => value.toLowerCase().includes(keyword)));
+}
+
 const channelMeta: Record<ManualChannel, { title: string; description: string; action: string; draftLabel: string }> = {
   WhatsApp: {
     title: "WhatsApp 人工跟进",
@@ -90,15 +109,21 @@ export function ManualFollowUpWorkspace({
   const wasContacted = (item: FollowUpCustomerOption) => channel === "Instagram"
     ? item.instagram_contacted
     : item.whatsapp_contacted;
+  const requestedCustomer = customers.find((item) => item.id === initialCustomerId);
   const firstAvailableCustomer = isContactHistoryChannel
-    ? customers.find((item) => !wasContacted(item))
+    ? customers.find((item) => !wasContacted(item) && (channel !== "WhatsApp" || !item.email_contacted))
     : customers[0];
   const [customerId, setCustomerId] = useState(
-    customers.some((item) => item.id === initialCustomerId) ? initialCustomerId! : firstAvailableCustomer?.id || "",
+    requestedCustomer
+      && (!isContactHistoryChannel || !wasContacted(requestedCustomer))
+      && (channel !== "WhatsApp" || !requestedCustomer.email_contacted)
+      ? requestedCustomer.id
+      : firstAvailableCustomer?.id || "",
   );
   const [priority, setPriority] = useState("");
   const [search, setSearch] = useState("");
   const [showContactedCustomers, setShowContactedCustomers] = useState(false);
+  const [onlyCustomersWithoutEmailOutreach, setOnlyCustomersWithoutEmailOutreach] = useState(channel === "WhatsApp");
   const [contactedCustomerIds, setContactedCustomerIds] = useState(
     () => new Set(customers.filter(wasContacted).map((item) => item.id)),
   );
@@ -115,14 +140,11 @@ export function ManualFollowUpWorkspace({
     : customer?.whatsapp || customer?.contact_email || "尚未填写";
 
   const filteredCustomers = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-    return customers.filter((item) =>
-      (!isContactHistoryChannel || showContactedCustomers || !contactedCustomerIds.has(item.id))
-      && (!priority || item.priority === priority)
-      && (!keyword || [item.company, item.country || "", item.contact_email || "", item.whatsapp || "", item.instagram || "", item.website || ""]
-        .some((value) => value.toLowerCase().includes(keyword)))
-    );
-  }, [contactedCustomerIds, customers, isContactHistoryChannel, priority, search, showContactedCustomers]);
+    return customers.filter((item) => matchesCustomerFilters(item, {
+      channel, isContactHistoryChannel, showContactedCustomers, onlyCustomersWithoutEmailOutreach,
+      contactedCustomerIds, priority, search,
+    }));
+  }, [channel, contactedCustomerIds, customers, isContactHistoryChannel, onlyCustomersWithoutEmailOutreach, priority, search, showContactedCustomers]);
 
   useEffect(() => {
     activeCustomerIdRef.current = customerId;
@@ -137,23 +159,31 @@ export function ManualFollowUpWorkspace({
     router.refresh();
   }, [isContactHistoryChannel, router, state]);
 
-  useEffect(() => {
-    if (filteredCustomers.some((item) => item.id === customerId)) return;
-    setCustomerId(filteredCustomers[0]?.id || "");
-    setDraft("");
-    setSummary("");
-  }, [customerId, filteredCustomers]);
-
   function updateFilter(nextPriority: string, nextSearch: string) {
     setPriority(nextPriority);
     setSearch(nextSearch);
-    const keyword = nextSearch.trim().toLowerCase();
-    const next = customers.filter((item) =>
-      (!isContactHistoryChannel || showContactedCustomers || !contactedCustomerIds.has(item.id))
-      && (!nextPriority || item.priority === nextPriority)
-      && (!keyword || [item.company, item.country || "", item.contact_email || "", item.whatsapp || "", item.instagram || "", item.website || ""]
-        .some((value) => value.toLowerCase().includes(keyword)))
-    );
+    const next = customers.filter((item) => matchesCustomerFilters(item, {
+      channel, isContactHistoryChannel, showContactedCustomers, onlyCustomersWithoutEmailOutreach,
+      contactedCustomerIds, priority: nextPriority, search: nextSearch,
+    }));
+    if (!next.some((item) => item.id === customerId)) setCustomerId(next[0]?.id || "");
+  }
+
+  function updateContactedFilter(nextShowContacted: boolean) {
+    setShowContactedCustomers(nextShowContacted);
+    const next = customers.filter((item) => matchesCustomerFilters(item, {
+      channel, isContactHistoryChannel, showContactedCustomers: nextShowContacted, onlyCustomersWithoutEmailOutreach,
+      contactedCustomerIds, priority, search,
+    }));
+    if (!next.some((item) => item.id === customerId)) setCustomerId(next[0]?.id || "");
+  }
+
+  function updateEmailOutreachFilter(nextOnlyWithoutEmail: boolean) {
+    setOnlyCustomersWithoutEmailOutreach(nextOnlyWithoutEmail);
+    const next = customers.filter((item) => matchesCustomerFilters(item, {
+      channel, isContactHistoryChannel, showContactedCustomers, onlyCustomersWithoutEmailOutreach: nextOnlyWithoutEmail,
+      contactedCustomerIds, priority, search,
+    }));
     if (!next.some((item) => item.id === customerId)) setCustomerId(next[0]?.id || "");
   }
 
@@ -205,10 +235,16 @@ export function ManualFollowUpWorkspace({
       </div>
       {isContactHistoryChannel && <div className="whatsappFilterLine">
         <p>当前显示 {filteredCustomers.length} / {customers.length} 位客户</p>
-        <label className="whatsappSentToggle">
-          <input type="checkbox" checked={showContactedCustomers} onChange={(event) => setShowContactedCustomers(event.target.checked)}/>
-          显示已发过 {channel} 的客户（{contactedCustomerIds.size}）
-        </label>
+        <div className="followUpFilterToggles">
+          {channel === "WhatsApp" && <label className="whatsappSentToggle">
+            <input type="checkbox" checked={onlyCustomersWithoutEmailOutreach} onChange={(event) => updateEmailOutreachFilter(event.target.checked)}/>
+            只显示未发过邮件的客户（{customers.filter((item) => !item.email_contacted).length}）
+          </label>}
+          <label className="whatsappSentToggle">
+            <input type="checkbox" checked={showContactedCustomers} onChange={(event) => updateContactedFilter(event.target.checked)}/>
+            显示已发过 {channel} 的客户（{contactedCustomerIds.size}）
+          </label>
+        </div>
       </div>}
       <label>选择客户<select value={customerId} onChange={(event) => { setCustomerId(event.target.value); setDraft(""); setSummary(""); }}>
         {!filteredCustomers.length && <option value="">没有待首次发送的客户，可勾选显示已发客户</option>}
