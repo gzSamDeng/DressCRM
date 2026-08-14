@@ -1,5 +1,6 @@
 import { Header } from "@/components/header";
 import { LeadIntelligenceWorkbench } from "@/components/lead-intelligence-workbench";
+import { BuyerDemandMonitor } from "@/components/buyer-demand-monitor";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { approveDiscoveredLead, rejectDiscoveredLead } from "@/app/actions";
@@ -56,6 +57,7 @@ export default async function LeadIntelligencePage({ searchParams }: {
 
   return <div className="shell intelligenceShell"><Header /><main className="intelligenceContainer">
     <LeadIntelligenceWorkbench />
+    <BuyerDemandMonitor />
     <section className="reviewCenter" id="review-center">
       <div className="reviewHeader"><div><span className="eyebrow">DATABASE REVIEW QUEUE</span><h2>线索审核中心</h2><p>数据库中共 {total} 条“{status === "pending" ? "待审核" : status === "approved" ? "已批准" : "已拒绝"}”线索，每页 {pageSize} 条。{status === "rejected" && `另有 ${excludedCount ?? excludedCustomers.length} 条从 CRM 移出的不合适客户。`}</p></div>
         <nav className="reviewTabs"><Link className={status === "pending" ? "active" : ""} href="/lead-intelligence?reviewStatus=pending#review-center">待审核</Link><Link className={status === "approved" ? "active" : ""} href="/lead-intelligence?reviewStatus=approved#review-center">已批准</Link><Link className={status === "rejected" ? "active" : ""} href="/lead-intelligence?reviewStatus=rejected#review-center">已拒绝</Link></nav>
@@ -73,7 +75,7 @@ export default async function LeadIntelligencePage({ searchParams }: {
           const customsRecords = [...(lead.customs_import_records ?? [])].sort((a, b) => b.import_date.localeCompare(a.import_date));
           return <tr key={lead.id}>
             <td><strong>{lead.ai_score}</strong><small>{lead.ai_grade}</small>{lead.data_completeness > 0 && <small>资料 {lead.data_completeness}%</small>}</td>
-              <td><strong>{lead.company}</strong><small>{[lead.city, lead.country].filter(Boolean).join(" · ") || "地区待确认"}</small>{lead.customs_import_count > 0 && <span className="customsBadge">海关进口数据</span>}{lead.customs_import_count > 0 && <small>{lead.customs_import_count} 次进口 · 最近 {lead.latest_customs_import_at}</small>}{lead.exhibitor_source && lead.lead_source !== "customs_import" && <small>{lead.exhibitor_source}</small>}{lead.website && <a href={lead.website} target="_blank" rel="noreferrer">{lead.website}</a>}</td>
+              <td><strong>{lead.company}</strong><small>{[lead.city, lead.country].filter(Boolean).join(" · ") || "地区待确认"}</small>{lead.customs_import_count > 0 && <span className="customsBadge">海关进口数据</span>}{lead.lead_source === "buyer_demand" && <span className="demandBadge">明确采购需求</span>}{lead.customs_import_count > 0 && <small>{lead.customs_import_count} 次进口 · 最近 {lead.latest_customs_import_at}</small>}{lead.exhibitor_source && lead.lead_source !== "customs_import" && <small>{lead.exhibitor_source}</small>}{lead.website && <a href={lead.website} target="_blank" rel="noreferrer">{lead.website}</a>}</td>
             <td>{lead.customer_type || "待确认"}</td>
             <td><div className="contactStack">{lead.contact_name && <span>{lead.contact_name}</span>}{lead.contact_email && <a href={`mailto:${lead.contact_email}`}>{lead.contact_email}</a>}{lead.contact_phone && <span>{lead.contact_phone}</span>}{lead.whatsapp && <span>WhatsApp: {lead.whatsapp}</span>}{lead.instagram && <a href={lead.instagram} target="_blank" rel="noreferrer">Instagram</a>}{lead.facebook && <a href={lead.facebook} target="_blank" rel="noreferrer">Facebook</a>}{lead.linkedin && <a href={lead.linkedin} target="_blank" rel="noreferrer">LinkedIn</a>}{!lead.contact_email && !lead.contact_phone && !lead.whatsapp && !lead.instagram && <small>尚未找到直接联系方式</small>}</div></td>
             <td><details><summary>站内查看证据</summary><div className="evidencePanel">{formatEvidenceList(lead.evidence).map((item, index) => <p key={`${index}-${item}`}>{item}</p>)}{lead.risks?.map((risk) => <p className="riskSignal" key={risk}>! {risk}</p>)}{lead.source_url && <a href={lead.source_url} target="_blank" rel="noreferrer">打开原始网页</a>}</div></details>{customsRecords.length > 0 && <details className="customsDetails"><summary>查看 {customsRecords.length} 条进口时间记录</summary><div>{customsRecords.map((record) => <article key={record.id}><strong>{record.import_date}</strong><span>HS {record.hs_code || "—"} · {record.quantity_raw || record.weight_raw || "数量未公开"}</span><p>{record.product_description || "礼服进口记录"}</p>{record.supplier_name && <small>中国供应商：{record.supplier_name}</small>}</article>)}</div></details>}</td>
