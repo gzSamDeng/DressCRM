@@ -56,6 +56,7 @@ export async function POST(request: Request) {
   if (!auth.user) return NextResponse.json({ error: "请先登录。" }, { status: 401 });
 
   const body = (await request.json().catch(() => ({}))) as { dryRun?: boolean };
+  const dryRun = body.dryRun || new URL(request.url).searchParams.get("dryRun") === "1";
   const [{ data: existingLeads, error: leadError }, { data: customers, error: customerError }] = await Promise.all([
     supabase.from("discovered_leads").select("source_key,company,website,contact_email,review_status"),
     supabase.from("customers").select("id,company,website,contact_email,is_excluded"),
@@ -103,7 +104,7 @@ export async function POST(request: Request) {
     .filter((lead) => duplicateReasons.has(lead.source_key))
     .map((lead) => ({ company: lead.company, reason: duplicateReasons.get(lead.source_key) }));
 
-  if (body.dryRun) {
+  if (dryRun) {
     return NextResponse.json({
       source: sourceName,
       reviewed: fairLeadReport.leads.length,
