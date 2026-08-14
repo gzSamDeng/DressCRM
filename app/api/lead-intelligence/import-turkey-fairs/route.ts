@@ -11,6 +11,19 @@ const jobQuery = "Turkey fair calendars → verified evening-dress exhibitors ·
 
 type FairLead = (typeof fairLeadReport.leads)[number];
 
+const genericSocialDomains = new Set([
+  "t.me",
+  "telegram.me",
+  "instagram.com",
+  "facebook.com",
+  "linkedin.com",
+]);
+
+function companyDomain(value: string | null | undefined) {
+  const domain = normalizedDomain(value);
+  return genericSocialDomains.has(domain) ? "" : domain;
+}
+
 function normalizeCompany(value: string | null | undefined) {
   return (value ?? "")
     .normalize("NFKD")
@@ -53,7 +66,7 @@ export async function POST(request: Request) {
 
   const allExisting = [...(existingLeads ?? []), ...(customers ?? [])];
   const knownSourceKeys = new Set((existingLeads ?? []).map((row) => row.source_key).filter(Boolean));
-  const knownDomains = new Set(allExisting.map((row) => normalizedDomain(row.website)).filter(Boolean));
+  const knownDomains = new Set(allExisting.map((row) => companyDomain(row.website)).filter(Boolean));
   const knownEmails = new Set(
     allExisting.map((row) => row.contact_email?.trim().toLowerCase()).filter(Boolean),
   );
@@ -64,7 +77,7 @@ export async function POST(request: Request) {
       duplicateReasons.set(lead.source_key, "source_key");
       return false;
     }
-    const domain = normalizedDomain(lead.website);
+    const domain = companyDomain(lead.website);
     if (domain && knownDomains.has(domain)) {
       duplicateReasons.set(lead.source_key, `domain:${domain}`);
       return false;
