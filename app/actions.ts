@@ -365,6 +365,119 @@ export async function rejectDiscoveredLead(id: string) {
   revalidatePath("/dashboard");
 }
 
+export async function restoreExcludedCustomer(customerId: string) {
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) throw new Error("请先登录系统。");
+
+  const admin = createAdminClient();
+  const { data: customer, error: customerError } = await admin
+    .from("customers")
+    .select("id,company,website,contact_email,is_excluded")
+    .eq("id", customerId)
+    .single();
+  if (customerError || !customer) throw new Error(customerError?.message ?? "客户不存在。");
+  if (!customer.is_excluded) throw new Error("该客户已经在客户线索库中，无需再次恢复。");
+
+  const host = leadHost(customer.website);
+  const matchers = [
+    host ? { match_type: "domain", match_value: host } : null,
+    customer.contact_email ? { match_type: "email", match_value: customer.contact_email.trim().toLowerCase() } : null,
+    customer.company ? { match_type: "company", match_value: customer.company.trim().toLowerCase() } : null,
+  ].filter((item): item is { match_type: string; match_value: string } => Boolean(item?.match_value));
+
+  for (const matcher of matchers) {
+    const { error: exclusionError } = await admin
+      .from("lead_exclusions")
+      .delete()
+      .eq("match_type", matcher.match_type)
+      .eq("match_value", matcher.match_value);
+    if (exclusionError && exclusionError.code !== "42P01") throw new Error(exclusionError.message);
+  }
+
+  const now = new Date().toISOString();
+  const { error: updateError } = await admin.from("customers").update({
+    is_excluded: false,
+    exclusion_reason: null,
+    excluded_at: null,
+    stage: "New Lead",
+    next_follow_up_at: now,
+  }).eq("id", customerId);
+  if (updateError) throw new Error(updateError.message);
+
+  const { error: discoveredLeadError } = await admin.from("discovered_leads").update({
+    review_status: "approved",
+    reviewed_at: now,
+    reviewed_by: auth.user.id,
+  }).eq("customer_id", customerId);
+  if (discoveredLeadError) throw new Error(discoveredLeadError.message);
+
+  const { error: followUpError } = await admin.from("follow_ups").insert({
+    customer_id: customerId,
+    channel: "System",
+    summary: "从审核已拒绝库恢复客户线索",
+    outcome: "恢复客户",
+    next_action: "重新检查客户背景并安排跟进",
+    happened_at: now,
+    created_by: auth.user.id,
+  });
+  if (followUpError) throw new Error(followUpError.message);
+
+  revalidatePath("/");
+  revalidatePath("/email");
+  revalidatePath("/follow-up");
+  revalidatePath("/dashboard");
+  revalidatePath("/lead-intelligence");
+  revalidatePath(`/customers/${customerId}`);
+}
+
+export async function restoreDiscoveredLead(id: string) {
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) throw new Error("请先登录系统。");
+  const { data: lead, error: leadError } = await supabase
+    .from("discovered_leads")
+    .select("id,review_status,customer_id")
+    .eq("id", id)
+    .single();
+  if (leadError || !lead) throw new Error(leadError?.message ?? "线索不存在。");
+  if (lead.review_status !== "rejected") throw new Error("只有已拒绝线索可以恢复。");
+
+  if (lead.customer_id) {
+    const admin = createAdminClient();
+    const { data: customer } = await admin
+      .from("customers")
+      .select("is_excluded")
+      .eq("id", lead.customer_id)
+      .maybeSingle();
+    if (customer?.is_excluded) {
+      await restoreExcludedCustomer(lead.customer_id);
+      return;
+    }
+    const now = new Date().toISOString();
+    const { error } = await supabase.from("discovered_leads").update({
+      review_status: "approved",
+      reviewed_at: now,
+      reviewed_by: auth.user.id,
+    }).eq("id", id);
+    if (error) throw new Error(error.message);
+  } else {
+    const { error } = await supabase.from("discovered_leads").update({
+      review_status: "pending",
+      reviewed_at: null,
+      reviewed_by: null,
+    }).eq("id", id);
+    if (error) throw new Error(error.message);
+    const { error: customsError } = await supabase.from("customs_import_records").update({
+      review_status: "pending",
+    }).eq("discovered_lead_id", id);
+    if (customsError && customsError.code !== "42P01") throw new Error(customsError.message);
+  }
+
+  revalidatePath("/lead-intelligence");
+  revalidatePath("/dashboard");
+}
+
 export async function assignCustomer(customerId: string, formData: FormData) {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();

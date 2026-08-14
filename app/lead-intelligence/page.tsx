@@ -1,9 +1,10 @@
 import { Header } from "@/components/header";
 import { LeadIntelligenceWorkbench } from "@/components/lead-intelligence-workbench";
 import { BuyerDemandMonitor } from "@/components/buyer-demand-monitor";
+import { ReviewLeadActions } from "@/components/review-lead-actions";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { approveDiscoveredLead, rejectDiscoveredLead } from "@/app/actions";
+import { restoreExcludedCustomer } from "@/app/actions";
 import { formatEvidenceList } from "@/lib/lead-intelligence/evidence";
 import "./lead-intelligence.css";
 
@@ -14,7 +15,7 @@ type CustomsRecord = {
 };
 
 type DiscoveredLead = {
-  id: string; company: string; website: string | null; country: string | null; city: string | null;
+  id: string; customer_id: string | null; company: string; website: string | null; country: string | null; city: string | null;
   customer_type: string | null; ai_score: number; ai_grade: string; evidence: unknown; risks: string[];
   source_url: string | null; contact_name: string | null; contact_email: string | null;
   contact_phone: string | null; whatsapp: string | null; instagram: string | null;
@@ -67,7 +68,10 @@ export default async function LeadIntelligencePage({ searchParams }: {
         <div className="excludedCustomerList">{excludedCustomers.map((customer) => <article key={customer.id}>
           <div><strong>{customer.company}</strong><small>{customer.country || "地区待确认"}{customer.excluded_at ? ` · ${new Date(customer.excluded_at).toLocaleDateString("zh-CN")}` : ""}</small></div>
           <p>{customer.exclusion_reason || "人工确认不属于目标客户"}</p>
-          {customer.website ? <a href={customer.website.match(/^https?:\/\//i) ? customer.website : `https://${customer.website}`} target="_blank" rel="noreferrer">查看网站</a> : <span>{customer.contact_email || "无公开联系方式"}</span>}
+          <div className="excludedActions">
+            {customer.website ? <a href={customer.website.match(/^https?:\/\//i) ? customer.website : `https://${customer.website}`} target="_blank" rel="noreferrer">查看网站</a> : <span>{customer.contact_email || "无公开联系方式"}</span>}
+            <form action={restoreExcludedCustomer.bind(null, customer.id)}><button className="restoreButton" type="submit">恢复到客户线索</button></form>
+          </div>
         </article>)}{!excludedCustomers.length && <p>目前没有从客户线索移出的记录。</p>}</div>
       </div>}
       <div className="reviewTableWrap"><table className="reviewTable"><thead><tr><th>评分</th><th>公司</th><th>客户类型</th><th>公开联系方式</th><th>证据与风险</th><th>操作</th></tr></thead><tbody>
@@ -79,7 +83,7 @@ export default async function LeadIntelligencePage({ searchParams }: {
             <td>{lead.customer_type || "待确认"}</td>
             <td><div className="contactStack">{lead.contact_name && <span>{lead.contact_name}</span>}{lead.contact_email && <a href={`mailto:${lead.contact_email}`}>{lead.contact_email}</a>}{lead.contact_phone && <span>{lead.contact_phone}</span>}{lead.whatsapp && <span>WhatsApp: {lead.whatsapp}</span>}{lead.instagram && <a href={lead.instagram} target="_blank" rel="noreferrer">Instagram</a>}{lead.facebook && <a href={lead.facebook} target="_blank" rel="noreferrer">Facebook</a>}{lead.linkedin && <a href={lead.linkedin} target="_blank" rel="noreferrer">LinkedIn</a>}{!lead.contact_email && !lead.contact_phone && !lead.whatsapp && !lead.instagram && <small>尚未找到直接联系方式</small>}</div></td>
             <td><details><summary>站内查看证据</summary><div className="evidencePanel">{formatEvidenceList(lead.evidence).map((item, index) => <p key={`${index}-${item}`}>{item}</p>)}{lead.risks?.map((risk) => <p className="riskSignal" key={risk}>! {risk}</p>)}{lead.source_url && <a href={lead.source_url} target="_blank" rel="noreferrer">打开原始网页</a>}</div></details>{customsRecords.length > 0 && <details className="customsDetails"><summary>查看 {customsRecords.length} 条进口时间记录</summary><div>{customsRecords.map((record) => <article key={record.id}><strong>{record.import_date}</strong><span>HS {record.hs_code || "—"} · {record.quantity_raw || record.weight_raw || "数量未公开"}</span><p>{record.product_description || "礼服进口记录"}</p>{record.supplier_name && <small>中国供应商：{record.supplier_name}</small>}</article>)}</div></details>}</td>
-            <td>{status === "pending" ? <div className="reviewActions"><form action={approveDiscoveredLead.bind(null, lead.id)}><button className="approveButton">批准进入 CRM</button></form><form action={rejectDiscoveredLead.bind(null, lead.id)}><button className="rejectButton">拒绝</button></form></div> : <span>{status === "approved" ? "已批准" : "已拒绝"}</span>}</td>
+            <td><ReviewLeadActions leadId={lead.id} status={status as "pending" | "approved" | "rejected"} linkedCustomer={Boolean(lead.customer_id)} /></td>
           </tr>;
         })}
         {!leads.length && <tr><td colSpan={6}>当前没有此状态的线索。</td></tr>}

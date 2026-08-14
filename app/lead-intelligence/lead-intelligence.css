@@ -9,3 +9,32 @@
   font-size: 11px;
   font-weight: 800;
 }
+
+.excludedActions {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.restoreButton {
+  border: 1px solid #78a999;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #edf8f4;
+  color: #176b55;
+  cursor: pointer;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.restoreButton:hover {
+  background: #dff2eb;
+}
+
+@media (max-width: 800px) {
+  .excludedActions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
