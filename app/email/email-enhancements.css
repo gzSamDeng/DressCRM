@@ -119,6 +119,45 @@
   justify-self: end;
 }
 
+.customerDataIssuePanel {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 11px 13px;
+  background: #fafafa;
+}
+
+.customerDataIssuePanel>summary {
+  width: fit-content;
+  color: #475569;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.customerDataIssueGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 11px;
+}
+
+.customerDataIssueGrid section {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.customerDataIssueGrid strong { color: #334155; font-size: 13px; }
+.customerDataIssueGrid p { min-height: 36px; margin: 0; color: #64748b; font-size: 11px; line-height: 1.55; }
+.customerDataIssueGrid button { justify-self: start; border: 0; border-radius: 8px; padding: 8px 11px; cursor: pointer; font-weight: 800; }
+.customerDataIssueGrid button:disabled { cursor: not-allowed; opacity: .5; }
+.rejectCustomerButton { background: #fee2e2; color: #991b1b; }
+.invalidEmailButton { background: #fef3c7; color: #92400e; }
+
 .emailCadenceNotice {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -252,4 +291,7 @@
     align-items: flex-start;
     flex-direction: column;
   }
+
+  .customerDataIssueGrid { grid-template-columns: 1fr; }
+  .customerDataIssueGrid p { min-height: 0; }
 }

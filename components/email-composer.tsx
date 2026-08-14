@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { excludeCustomerAsUnsuitable, markCustomerEmailInvalid } from "@/app/actions";
 
 const DEFAULT_CC = "liqingyan777@gmail.com, samteng188@gmail.com";
 
@@ -61,6 +62,9 @@ export function EmailComposer({ customers, totalCustomers, initialReply = null }
   const [body, setBody] = useState("");
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
+  const [updatingCustomer, setUpdatingCustomer] = useState(false);
+  const [unsuitableReason, setUnsuitableReason] = useState("");
+  const [invalidEmailReason, setInvalidEmailReason] = useState("");
   const [status, setStatus] = useState<{ ok: boolean; message: string } | null>(null);
   const [replyContext, setReplyContext] = useState<EmailReplyContext | null>(initialReply);
   const customer = useMemo(() => customers.find((item) => item.id === customerId), [customerId, customers]);
@@ -104,7 +108,46 @@ export function EmailComposer({ customers, totalCustomers, initialReply = null }
     setCustomerId(id);
     setTo(selected?.contact_email || "");
     setReplyContext(null);
+    setUnsuitableReason("");
+    setInvalidEmailReason("");
     setStatus(null);
+  }
+
+  async function excludeCustomer() {
+    if (!customerId || !unsuitableReason.trim()) return setStatus({ ok: false, message: "请填写客户不合适的具体原因。" });
+    if (!window.confirm(`确认将“${customer?.company || "该客户"}”移入审核已拒绝库，并停止所有渠道跟进吗？`)) return;
+    setUpdatingCustomer(true);
+    setStatus(null);
+    try {
+      const result = await excludeCustomerAsUnsuitable(customerId, unsuitableReason);
+      setStatus(result);
+      if (result.ok) {
+        setUnsuitableReason("");
+        router.refresh();
+      }
+    } catch (error) {
+      setStatus({ ok: false, message: error instanceof Error ? error.message : "标记客户失败，请稍后重试。" });
+    } finally {
+      setUpdatingCustomer(false);
+    }
+  }
+
+  async function invalidateEmail() {
+    if (!customerId || !invalidEmailReason.trim()) return setStatus({ ok: false, message: "请填写邮箱退信或无效的原因。" });
+    setUpdatingCustomer(true);
+    setStatus(null);
+    try {
+      const result = await markCustomerEmailInvalid(customerId, invalidEmailReason);
+      setStatus(result);
+      if (result.ok) {
+        setInvalidEmailReason("");
+        router.refresh();
+      }
+    } catch (error) {
+      setStatus({ ok: false, message: error instanceof Error ? error.message : "标记邮箱失败，请稍后重试。" });
+    } finally {
+      setUpdatingCustomer(false);
+    }
   }
 
   function updateFilters(nextPriority: string, nextSearch: string) {
@@ -229,6 +272,23 @@ export function EmailComposer({ customers, totalCustomers, initialReply = null }
     </div>;
     })()}
     {customer?.website && <div className="selectedCustomerWebsite"><span>客户网站</span><a href={customer.website.match(/^https?:\/\//i) ? customer.website : `https://${customer.website}`} target="_blank" rel="noreferrer">{customer.website}</a><small>发送前可点击官网，再次确认客户与产品是否匹配。</small></div>}
+    {customer && <details className="customerDataIssuePanel">
+      <summary>客户或邮箱信息有问题？</summary>
+      <div className="customerDataIssueGrid">
+        <section>
+          <strong>官网确认客户不合适</strong>
+          <p>整条客户线索会移入审核已拒绝库，并停止邮件、WhatsApp 等所有跟进。</p>
+          <input value={unsuitableReason} onChange={(event) => setUnsuitableReason(event.target.value)} placeholder="例如：只销售婚纱，不采购晚礼服"/>
+          <button type="button" className="rejectCustomerButton" onClick={excludeCustomer} disabled={updatingCustomer || !unsuitableReason.trim()}>标记客户不合适</button>
+        </section>
+        <section>
+          <strong>邮箱多次退信或确认无效</strong>
+          <p>只停用当前邮箱，客户仍保留在系统，可继续使用 WhatsApp、Instagram 等渠道。</p>
+          <input value={invalidEmailReason} onChange={(event) => setInvalidEmailReason(event.target.value)} placeholder="例如：连续退信，邮箱不存在"/>
+          <button type="button" className="invalidEmailButton" onClick={invalidateEmail} disabled={updatingCustomer || !invalidEmailReason.trim()}>标记当前邮箱无效</button>
+        </section>
+      </div>
+    </details>}
     <label>抄送 CC（可选，多个邮箱用逗号分隔）<input name="cc" value={cc} onChange={(event) => setCc(event.target.value)} placeholder="manager@example.com"/></label>
     <div className="draftAssistant">
       <label>这封邮件想沟通什么（可选）

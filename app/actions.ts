@@ -147,6 +147,117 @@ export async function addManualFollowUp(
   return saveFollowUp(customerId, formData);
 }
 
+function leadHost(website: string | null) {
+  if (!website) return "";
+  try {
+    const url = new URL(website.match(/^https?:\/\//i) ? website : `https://${website}`);
+    return url.hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+export async function excludeCustomerAsUnsuitable(customerId: string, reason: string): Promise<FollowUpActionState> {
+  const cleanReason = reason.trim();
+  if (!cleanReason) return { ok: false, message: "请填写客户不合适的具体原因。" };
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return { ok: false, message: "请先登录系统。" };
+  const { data: customer, error: customerError } = await supabase
+    .from("customers")
+    .select("id,company,website,contact_email")
+    .eq("id", customerId)
+    .eq("is_excluded", false)
+    .single();
+  if (customerError || !customer) return { ok: false, message: "客户不存在或已经被移出有效线索库。" };
+
+  const exclusionReason = `人工确认不属于目标礼服客户：${cleanReason}`;
+  const admin = createAdminClient();
+  const host = leadHost(customer.website);
+  const matchType = host ? "domain" : customer.contact_email ? "email" : "company";
+  const matchValue = host || customer.contact_email?.trim().toLowerCase() || customer.company.trim().toLowerCase();
+  const { error: exclusionError } = await admin.from("lead_exclusions").upsert({
+    match_type: matchType,
+    match_value: matchValue,
+    reason: exclusionReason,
+    created_by: auth.user.id,
+  }, { onConflict: "match_type,match_value" });
+  if (exclusionError) return { ok: false, message: `保存永久排除规则失败：${exclusionError.message}` };
+
+  const now = new Date().toISOString();
+  const { error: followUpError } = await supabase.from("follow_ups").insert({
+    customer_id: customerId,
+    channel: "Website Review",
+    summary: exclusionReason,
+    outcome: "客户不匹配",
+    next_action: "移入审核已拒绝库，不再继续开发",
+    happened_at: now,
+    created_by: auth.user.id,
+  });
+  if (followUpError) return { ok: false, message: `保存审核记录失败：${followUpError.message}` };
+
+  const { error: updateError } = await supabase.from("customers").update({
+    is_excluded: true,
+    exclusion_reason: exclusionReason,
+    excluded_at: now,
+    stage: "Rejected",
+    next_follow_up_at: null,
+  }).eq("id", customerId);
+  if (updateError) return { ok: false, message: `移出客户线索失败：${updateError.message}` };
+
+  await supabase.from("discovered_leads").update({
+    review_status: "rejected",
+    reviewed_at: now,
+    reviewed_by: auth.user.id,
+  }).eq("customer_id", customerId);
+  revalidatePath("/");
+  revalidatePath("/email");
+  revalidatePath("/follow-up");
+  revalidatePath("/dashboard");
+  revalidatePath("/lead-intelligence");
+  return { ok: true, message: "该客户已移入审核已拒绝库，并加入永久排除规则。" };
+}
+
+export async function markCustomerEmailInvalid(customerId: string, reason: string): Promise<FollowUpActionState> {
+  const cleanReason = reason.trim();
+  if (!cleanReason) return { ok: false, message: "请填写邮箱无效或退信的原因。" };
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return { ok: false, message: "请先登录系统。" };
+  const { data: customer, error: customerError } = await supabase
+    .from("customers")
+    .select("id,contact_email,notes")
+    .eq("id", customerId)
+    .eq("is_excluded", false)
+    .single();
+  if (customerError || !customer) return { ok: false, message: "客户不存在。" };
+  if (!customer.contact_email) return { ok: false, message: "该客户当前没有联系邮箱。" };
+
+  const now = new Date().toISOString();
+  const invalidNote = `无效邮箱：${customer.contact_email}；原因：${cleanReason}；标记时间：${new Date(now).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}`;
+  const { error: followUpError } = await supabase.from("follow_ups").insert({
+    customer_id: customerId,
+    channel: "Email",
+    summary: invalidNote,
+    outcome: "邮箱无效",
+    next_action: "查找新邮箱，或改用 WhatsApp、Instagram 等渠道",
+    happened_at: now,
+    created_by: auth.user.id,
+  });
+  if (followUpError) return { ok: false, message: `保存邮箱状态失败：${followUpError.message}` };
+
+  const { error: updateError } = await supabase.from("customers").update({
+    contact_email: null,
+    notes: [customer.notes, invalidNote].filter(Boolean).join("\n"),
+  }).eq("id", customerId);
+  if (updateError) return { ok: false, message: `更新客户邮箱失败：${updateError.message}` };
+  revalidatePath("/");
+  revalidatePath("/email");
+  revalidatePath("/follow-up");
+  revalidatePath(`/customers/${customerId}`);
+  return { ok: true, message: "该邮箱已标记为无效并从待发邮件清单移除；客户仍可通过其他渠道继续跟进。" };
+}
+
 export async function approveDiscoveredLead(id: string) {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
