@@ -21,6 +21,7 @@ export type GmailMessageSummary = {
   cc: string;
   subject: string;
   snippet: string;
+  content: string;
   date: string;
 };
 
@@ -176,11 +177,16 @@ export async function listCustomerMessages(
   const searchTerms = customerContacts.flatMap((item) => [`from:${item.email}`, `to:${item.email}`]);
   const params = new URLSearchParams({ maxResults: "30", q: `newer_than:2y {${searchTerms.join(" ")}}` });
   const list = await gmailJson<GmailListResponse>(accessToken, `https://gmail.googleapis.com/gmail/v1/users/me/messages?${params}`);
-  const messages = await Promise.all((list.messages ?? []).map(({ id }) => {
-    const detailParams = new URLSearchParams({ format: "metadata" });
-    ["From", "To", "Cc", "Subject", "Date", "Message-ID"].forEach((header) => detailParams.append("metadataHeaders", header));
-    return gmailJson<GmailMessageResponse>(accessToken, `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?${detailParams}`);
-  }));
+  const messages: GmailMessageResponse[] = [];
+  const messageRefs = list.messages ?? [];
+  for (let index = 0; index < messageRefs.length; index += 5) {
+    const batch = messageRefs.slice(index, index + 5);
+    const details = await Promise.all(batch.map(({ id }) => {
+      const detailParams = new URLSearchParams({ format: "full" });
+      return gmailJson<GmailMessageResponse>(accessToken, `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?${detailParams}`);
+    }));
+    messages.push(...details);
+  }
 
   const accountEmail = account.email.toLowerCase();
   return messages.flatMap((message) => {
@@ -205,6 +211,7 @@ export async function listCustomerMessages(
       cc,
       subject: headerValue(message, "Subject") || "（无主题）",
       snippet: message.snippet || "",
+      content: (messageBody(message.payload) || message.snippet || "").slice(0, 12_000),
       date: internalDate || (headerDate ? new Date(headerDate).toISOString() : new Date().toISOString()),
     }];
   }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());

@@ -125,6 +125,10 @@ export default async function EmailPage({ searchParams }: { searchParams: Promis
     direction: message.direction,
     subject: message.subject,
     snippet: message.snippet,
+    content: message.content,
+    from: message.from,
+    to: message.to,
+    cc: message.cc,
     date: message.date,
     reply: message.direction === "received" ? {
       customer_id: message.customerId,
