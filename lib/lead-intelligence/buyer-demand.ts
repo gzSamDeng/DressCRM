@@ -3,6 +3,13 @@ import { createHash } from "node:crypto";
 type SerperOrganicResult = { title?: string; link?: string; snippet?: string; date?: string };
 type SerperResponse = { organic?: SerperOrganicResult[]; message?: string };
 
+export type BuyerDemandSearchResult = {
+  demands: BuyerDemandLead[];
+  warnings: string[];
+  successfulQueries: number;
+  failedQueries: number;
+};
+
 export type BuyerDemandLead = {
   sourceKey: string; company: string; country: string | null; customerType: string;
   score: number; grade: "A+" | "A" | "B"; confidence: "high" | "medium";
@@ -114,26 +121,87 @@ export function qualifyBuyerDemand(result: SerperOrganicResult, now = new Date()
   };
 }
 
-export async function searchBuyerDemands() {
+function serperErrorDetail(body: string) {
+  if (!body.trim()) return "";
+  try {
+    const payload = JSON.parse(body) as { message?: unknown; error?: unknown };
+    const nestedError = typeof payload.error === "object" && payload.error
+      ? (payload.error as { message?: unknown }).message
+      : payload.error;
+    const detail = payload.message ?? nestedError;
+    return typeof detail === "string" ? cleanText(detail).slice(0, 180) : "";
+  } catch {
+    return "";
+  }
+}
+
+export function describeSerperFailure(status: number, body = "") {
+  const detail = serperErrorDetail(body);
+  const lowerDetail = detail.toLowerCase();
+  if (/credit|quota|balance|insufficient/.test(lowerDetail)) {
+    return "Serper 查询额度不足，请在 Serper 后台充值或更换有效 API Key。";
+  }
+  if (/api.?key|unauthori[sz]ed|invalid.?key/.test(lowerDetail) || status === 401 || status === 403) {
+    return "Serper API Key 无效、已撤销或没有搜索权限，请检查 Vercel 环境变量 SERPER_API_KEY。";
+  }
+  if (status === 429) return "Serper 请求过于频繁，系统稍后重试即可。";
+  if (status >= 500) return "Serper 搜索服务暂时不可用，请稍后重试。";
+  if (status === 400) {
+    return detail ? `Serper 拒绝了搜索条件（400）：${detail}` : "Serper 拒绝了搜索条件（400），请检查查询格式或账户额度。";
+  }
+  return detail ? `Serper 搜索失败（${status}）：${detail}` : `Serper 搜索失败（${status}）。`;
+}
+
+function sixMonthsAgo(now = new Date()) {
+  const date = new Date(now);
+  date.setUTCMonth(date.getUTCMonth() - 6);
+  return date.toISOString().slice(0, 10);
+}
+
+async function runSerperQuery(query: string, apiKey: string) {
+  // Use Google's broadly supported `after:` operator instead of Serper's optional tbs parameter.
+  const datedQuery = `${query} after:${sixMonthsAgo()}`;
+  const response = await fetch("https://google.serper.dev/search", {
+    method: "POST",
+    headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify({ q: datedQuery, gl: "us", hl: "en", num: 10 }),
+    cache: "no-store",
+    signal: AbortSignal.timeout(20_000),
+  });
+  const body = await response.text();
+  if (!response.ok) throw new Error(describeSerperFailure(response.status, body));
+  let payload: SerperResponse;
+  try {
+    payload = JSON.parse(body) as SerperResponse;
+  } catch {
+    throw new Error("Serper 返回了无法解析的数据，请稍后重试。");
+  }
+  if (payload.message) throw new Error(payload.message);
+  return payload.organic ?? [];
+}
+
+export async function searchBuyerDemands(): Promise<BuyerDemandSearchResult> {
   const apiKey = process.env.SERPER_API_KEY;
   if (!apiKey) throw new Error("尚未配置 SERPER_API_KEY。");
   const responses: SerperOrganicResult[][] = [];
+  const warnings: string[] = [];
+  let successfulQueries = 0;
   for (let index = 0; index < searchQueries.length; index += 2) {
-    const batch = await Promise.all(searchQueries.slice(index, index + 2).map(async (query) => {
-      const response = await fetch("https://google.serper.dev/search", {
-        method: "POST",
-        headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
-        body: JSON.stringify({ q: query, gl: "us", hl: "en", num: 10, tbs: "qdr:m6" }),
-        cache: "no-store",
-        signal: AbortSignal.timeout(20_000),
-      });
-      if (!response.ok) throw new Error(`采购需求搜索失败（${response.status}）。`);
-      const payload = await response.json() as SerperResponse;
-      if (payload.message) throw new Error(payload.message);
-      return payload.organic ?? [];
-    }));
-    responses.push(...batch);
+    const batch = await Promise.allSettled(
+      searchQueries.slice(index, index + 2).map((query) => runSerperQuery(query, apiKey)),
+    );
+    batch.forEach((result, batchIndex) => {
+      if (result.status === "fulfilled") {
+        successfulQueries += 1;
+        responses.push(result.value);
+      } else {
+        const queryNumber = index + batchIndex + 1;
+        const reason = result.reason instanceof Error ? result.reason.message : "未知搜索错误";
+        warnings.push(`第 ${queryNumber} 组搜索失败：${reason}`);
+      }
+    });
   }
+  if (!successfulQueries) throw new Error(warnings[0] ?? "全部采购需求搜索均失败，请稍后重试。");
   const unique = new Map<string, BuyerDemandLead>();
   responses.flat().forEach((result) => {
     const demand = qualifyBuyerDemand(result);
@@ -141,5 +209,10 @@ export async function searchBuyerDemands() {
     const current = unique.get(demand.sourceKey);
     if (!current || demand.score > current.score) unique.set(demand.sourceKey, demand);
   });
-  return [...unique.values()].sort((a, b) => b.score - a.score);
+  return {
+    demands: [...unique.values()].sort((a, b) => b.score - a.score),
+    warnings,
+    successfulQueries,
+    failedQueries: warnings.length,
+  };
 }

@@ -21,7 +21,8 @@ export async function POST() {
   if (jobError || !job) return NextResponse.json({ error: jobError?.message ?? "无法创建监测任务。" }, { status: 500 });
 
   try {
-    const demands = await searchBuyerDemands();
+    const searchResult = await searchBuyerDemands();
+    const demands = searchResult.demands;
     const keys = demands.map((demand) => demand.sourceKey);
     const existingResult = keys.length
       ? await supabase.from("discovered_leads").select("source_key").in("source_key", keys)
@@ -46,7 +47,8 @@ export async function POST() {
     await supabase.from("search_jobs").update({ status: "complete", candidates_found: demands.length,
       completed_at: new Date().toISOString() }).eq("id", job.id);
     return NextResponse.json({ candidatesFound: demands.length, insertedCount: newDemands.length,
-      duplicateCount: demands.length - newDemands.length });
+      duplicateCount: demands.length - newDemands.length, warnings: searchResult.warnings,
+      successfulQueries: searchResult.successfulQueries, failedQueries: searchResult.failedQueries });
   } catch (error) {
     const message = error instanceof Error ? error.message : "采购需求监测失败。";
     await supabase.from("search_jobs").update({ status: "failed", completed_at: new Date().toISOString() }).eq("id", job.id);

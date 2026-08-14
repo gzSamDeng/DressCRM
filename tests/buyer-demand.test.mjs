@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { qualifyBuyerDemand } from "../lib/lead-intelligence/buyer-demand.ts";
+import { describeSerperFailure, qualifyBuyerDemand } from "../lib/lead-intelligence/buyer-demand.ts";
 
 const now = new Date("2026-08-14T00:00:00.000Z");
 
@@ -23,4 +23,11 @@ test("uses a stable URL-based source key for deduplication", () => {
   const input = { title: "RFQ for wholesale formal gowns", link: "https://example.com/rfq/123",
     snippet: "Looking for supplier of evening dresses. Quantity required: 300 pcs." };
   assert.equal(qualifyBuyerDemand(input, now)?.sourceKey, qualifyBuyerDemand(input, now)?.sourceKey);
+});
+
+test("turns Serper failures into useful operator messages", () => {
+  assert.match(describeSerperFailure(400, JSON.stringify({ message: "Not enough credits" })), /额度不足/);
+  assert.match(describeSerperFailure(401, JSON.stringify({ message: "Unauthorized" })), /API Key/);
+  assert.match(describeSerperFailure(429), /频繁/);
+  assert.match(describeSerperFailure(400), /搜索条件/);
 });
