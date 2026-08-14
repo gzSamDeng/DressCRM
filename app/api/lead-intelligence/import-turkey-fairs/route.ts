@@ -188,3 +188,9 @@ export async function POST(request: Request) {
     duplicates,
   });
 }
+
+export async function GET(request: Request) {
+  const previewUrl = new URL(request.url);
+  previewUrl.searchParams.set("dryRun", "1");
+  return POST(new Request(previewUrl, { method: "POST", headers: request.headers }));
+}
