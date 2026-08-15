@@ -9,6 +9,7 @@ type MonitorResult = {
   warnings?: string[];
   successfulQueries?: number;
   failedQueries?: number;
+  rejectedInvalidCount?: number;
   error?: string;
 };
 
@@ -25,7 +26,10 @@ export function BuyerDemandMonitor() {
       const warning = payload.warnings?.length
         ? `另外有 ${payload.failedQueries ?? payload.warnings.length} 组来源暂时失败，其余 ${payload.successfulQueries ?? 0} 组已正常完成。`
         : "";
-      setMessage(`发现 ${payload.candidatesFound ?? 0} 条合格需求，新增 ${payload.insertedCount ?? 0} 条；已自动跳过 ${payload.duplicateCount ?? 0} 条重复记录。${warning}`);
+      const cleanup = payload.rejectedInvalidCount
+        ? `已将 ${payload.rejectedInvalidCount} 条非详情页错误线索移出待审核。`
+        : "";
+      setMessage(`发现 ${payload.candidatesFound ?? 0} 条合格需求，新增 ${payload.insertedCount ?? 0} 条；已自动跳过 ${payload.duplicateCount ?? 0} 条重复记录。${cleanup}${warning}`);
       window.setTimeout(() => { window.location.href = "/lead-intelligence?reviewStatus=pending#review-center"; }, warning ? 3500 : 1200);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "监测失败，请稍后重试。");

@@ -19,7 +19,7 @@ export type BuyerDemandLead = {
 };
 
 const searchQueries = [
-  'site:go4worldbusiness.com/buyers ("evening dress" OR "evening wear" OR "prom dress" OR "formal gown") (wanted OR "quantity required")',
+  'site:go4worldbusiness.com/buylead/view/ ("evening dress" OR "evening wear" OR "prom dress" OR "formal gown") (wanted OR "quantity required")',
   '(RFQ OR "buying request" OR "looking for supplier") ("evening dresses" OR "prom dresses" OR "formal gowns" OR occasionwear) wholesale',
   '("looking for" OR seeking) ("evening dress manufacturer" OR "formalwear supplier" OR "private label prom dress")',
   '("ищу поставщика" OR "закупаем" OR "оптом требуется") ("вечерние платья" OR "платья для выпускного")',
@@ -44,6 +44,22 @@ function platformFromUrl(url: URL) {
   if (host.includes("optlist")) return "OptList";
   if (host.includes("qifa")) return "QIFA";
   return host;
+}
+
+export function isBuyerDemandDetailUrl(value: string | URL) {
+  let url: URL;
+  try { url = typeof value === "string" ? new URL(value) : value; } catch { return false; }
+  const host = url.hostname.toLowerCase().replace(/^www\./, "");
+  const path = url.pathname.replace(/\/{2,}/g, "/");
+
+  // go4WorldBusiness search/category pages contain many unrelated products in one
+  // snippet. Only a numbered buy-lead detail page represents one auditable RFQ.
+  if (host.includes("go4worldbusiness")) return /^\/buylead\/view\/\d+\//i.test(path);
+
+  // Reject common search, directory and category pages on every other platform.
+  if (/^\/(?:find|search|buyers|buyleads)(?:\/|$)/i.test(path)) return false;
+  if (url.searchParams.has("searchText") || url.searchParams.has("FindBuyers")) return false;
+  return path !== "/";
 }
 
 function parsedDate(value: string | undefined, now: Date) {
@@ -77,7 +93,10 @@ export function qualifyBuyerDemand(result: SerperOrganicResult, now = new Date()
   const title = cleanText(result.title);
   const snippet = cleanText(result.snippet ?? "");
   const combined = `${title} ${snippet}`;
-  if (!productPattern.test(combined) || !intentPattern.test(combined) || supplierAdPattern.test(combined)) return null;
+  // Product relevance must be present in the result title itself. Category/search
+  // snippets frequently contain unrelated navigation terms such as "Evening Dress".
+  if (!productPattern.test(title) || !intentPattern.test(combined) || supplierAdPattern.test(combined)) return null;
+  if (!isBuyerDemandDetailUrl(url)) return null;
 
   const platform = platformFromUrl(url);
   const published = parsedDate(result.date, now);

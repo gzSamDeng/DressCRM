@@ -1,15 +1,27 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { describeSerperFailure, qualifyBuyerDemand } from "../lib/lead-intelligence/buyer-demand.ts";
+import { describeSerperFailure, isBuyerDemandDetailUrl, qualifyBuyerDemand } from "../lib/lead-intelligence/buyer-demand.ts";
 
 const now = new Date("2026-08-14T00:00:00.000Z");
 
 test("qualifies a recent explicit evening-dress buying request", () => {
   const demand = qualifyBuyerDemand({ title: "Wanted: A Line V-Neck Sequin Evening Dress",
-    link: "https://www.go4worldbusiness.com/buyoffer/example.html",
+    link: "https://www.go4worldbusiness.com/buylead/view/1293192/wanted-a-line-v-neck-sequin-evening-dress.html",
     snippet: "Buyer from Singapore. Quantity Required: 100-200 Pieces. Looking for supplier worldwide.", date: "3 days ago" }, now);
   assert.ok(demand); assert.equal(demand.country, "Singapore"); assert.match(demand.quantity ?? "", /100-200/i);
   assert.equal(demand.platform, "go4WorldBusiness"); assert.ok(demand.score >= 80);
+});
+
+test("rejects search/category URLs and unrelated titles with contaminated snippets", () => {
+  assert.equal(isBuyerDemandDetailUrl("https://www.go4worldbusiness.com/find?searchText=evening-dress"), false);
+  assert.equal(isBuyerDemandDetailUrl("https://www.go4worldbusiness.com/buyers/evening-wear.html"), false);
+  assert.equal(isBuyerDemandDetailUrl("https://www.go4worldbusiness.com/buylead/view/1293192/wanted-evening-dress.html"), true);
+  assert.equal(qualifyBuyerDemand({
+    title: "Polyester T Shirts Buyers & Importers in Maldives",
+    link: "https://www.go4worldbusiness.com/find?searchText=polyester-t-shirts&BuyersOrSuppliers=buyers",
+    snippet: "Evening Dress · Children Garment. Wanted: Baby Diapers. Quantity Required: 5-10.",
+    date: "2 days ago",
+  }, now), null);
 });
 
 test("rejects supplier ads and results without procurement intent", () => {

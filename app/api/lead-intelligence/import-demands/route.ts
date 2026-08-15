@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { eveningDressTemplate } from "@/lib/lead-intelligence/evening-dress";
-import { searchBuyerDemands } from "@/lib/lead-intelligence/buyer-demand";
+import { isBuyerDemandDetailUrl, searchBuyerDemands } from "@/lib/lead-intelligence/buyer-demand";
 
 export const maxDuration = 60;
 
@@ -21,6 +21,25 @@ export async function POST() {
   if (jobError || !job) return NextResponse.json({ error: jobError?.message ?? "无法创建监测任务。" }, { status: 500 });
 
   try {
+    const { data: pendingDemandRows, error: pendingDemandError } = await supabase
+      .from("discovered_leads")
+      .select("id,source_url")
+      .eq("lead_source", "buyer_demand")
+      .eq("review_status", "pending");
+    if (pendingDemandError) throw new Error(pendingDemandError.message);
+    const invalidDemandIds = (pendingDemandRows ?? [])
+      .filter((row) => !row.source_url || !isBuyerDemandDetailUrl(row.source_url))
+      .map((row) => row.id);
+    if (invalidDemandIds.length) {
+      const { error: cleanupError } = await supabase.from("discovered_leads").update({
+        review_status: "rejected",
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: authData.user.id,
+        recommendation: "系统复核：来源是搜索或分类列表页，并非可核验的具体采购询盘，已自动移出待审核列表。",
+      }).in("id", invalidDemandIds);
+      if (cleanupError) throw new Error(cleanupError.message);
+    }
+
     const searchResult = await searchBuyerDemands();
     const demands = searchResult.demands;
     const keys = demands.map((demand) => demand.sourceKey);
@@ -48,7 +67,8 @@ export async function POST() {
       completed_at: new Date().toISOString() }).eq("id", job.id);
     return NextResponse.json({ candidatesFound: demands.length, insertedCount: newDemands.length,
       duplicateCount: demands.length - newDemands.length, warnings: searchResult.warnings,
-      successfulQueries: searchResult.successfulQueries, failedQueries: searchResult.failedQueries });
+      successfulQueries: searchResult.successfulQueries, failedQueries: searchResult.failedQueries,
+      rejectedInvalidCount: invalidDemandIds.length });
   } catch (error) {
     const message = error instanceof Error ? error.message : "采购需求监测失败。";
     await supabase.from("search_jobs").update({ status: "failed", completed_at: new Date().toISOString() }).eq("id", job.id);
