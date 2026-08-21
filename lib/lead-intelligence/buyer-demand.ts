@@ -8,6 +8,7 @@ export type BuyerDemandSearchResult = {
   warnings: string[];
   successfulQueries: number;
   failedQueries: number;
+  verificationRejectedCount: number;
 };
 
 export type BuyerDemandLead = {
@@ -28,6 +29,8 @@ const searchQueries = [
 const productPattern = /\b(evening\s*(dress|wear|gown)s?|prom\s*(dress|gown)s?|formal\s*(dress|wear|gown)s?|occasion\s*wear|cocktail\s*dresses|ball\s*gowns?|mother[- ]of[- ]the[- ]bride|beaded\s*gowns?|sequin\s*dresses)\b|вечерн\w*\s+плать\w*|плать\w*\s+для\s+выпускн\w*/i;
 const intentPattern = /\b(wanted|want to buy|buying request|purchase requirement|quantity required|request for quotation|rfq|looking for (a )?(supplier|manufacturer|vendor)|seeking (a )?(supplier|manufacturer|vendor)|need (a )?(supplier|manufacturer)|sourcing (a )?(supplier|manufacturer))\b|ищу\s+поставщик\w*|закупаем|оптом\s+требуется|запрос\s+цен/i;
 const supplierAdPattern = /\b(we are (a )?(supplier|manufacturer|factory)|our factory|shop now|free shipping|add to cart|job opening|hiring)\b|мы\s+производител/i;
+const nonDemandPattern = /\b(appoints?|appointed|appointment|named\s+as|new\s+(?:ceo|md|director|manager)|joins?\s+as|promotion|press release|industry news|market report|edited|report this post|close menu|job opening|hiring)\b/i;
+const pageDetailPattern = /\b(quantity required|buyer from|destination|shipping terms|product description|buying lead|buyer details|valid until|date posted|posted on|rfq\s*(?:id|no\.?))\b|страна\s+покупателя|объем\s+закупки/i;
 const quantityPattern = /\b(?:quantity(?:\s+required)?|qty|order(?:\s+quantity)?|need|requirement)\s*[:\-]?\s*((?:\d[\d,.]*)(?:\s*(?:-|to)\s*\d[\d,.]*)?\s*(?:pieces?|pcs?|units?|dresses?|sets?|dozen|dozens)?)\b/i;
 const countryPattern = /\b(?:buyer\s+from|destination\s*[:\-]?|country\s*[:\-]?)\s*([A-Z][A-Za-z '-]{2,34})(?=[.,;]|\s+(?:quantity|looking|seeking|need|requirement)\b|$)/i;
 
@@ -55,11 +58,14 @@ export function isBuyerDemandDetailUrl(value: string | URL) {
   // go4WorldBusiness search/category pages contain many unrelated products in one
   // snippet. Only a numbered buy-lead detail page represents one auditable RFQ.
   if (host.includes("go4worldbusiness")) return /^\/buylead\/view\/\d+\//i.test(path);
+  if (host === "sourcing.alibaba.com") return /\/rfq\//i.test(path) || /rfq_detail/i.test(path);
+  if (host.includes("tradekey")) return /\/(?:buyoffer|buying-leads?)\//i.test(path);
+  if (host.includes("tradeindia")) return /\/(?:buyoffer|buy-leads?)\//i.test(path);
+  if (host.includes("exportersindia")) return /\/buy-leads?\//i.test(path);
+  if (host.includes("linkedin")) return /\/posts\/[^/]+/i.test(path) || /\/feed\/update\/urn:li:activity:/i.test(path);
 
-  // Reject common search, directory and category pages on every other platform.
-  if (/^\/(?:find|search|buyers|buyleads)(?:\/|$)/i.test(path)) return false;
-  if (url.searchParams.has("searchText") || url.searchParams.has("FindBuyers")) return false;
-  return path !== "/";
+  // Unknown websites, news pages and search/category pages are not auditable RFQs.
+  return false;
 }
 
 function parsedDate(value: string | undefined, now: Date) {
@@ -93,9 +99,10 @@ export function qualifyBuyerDemand(result: SerperOrganicResult, now = new Date()
   const title = cleanText(result.title);
   const snippet = cleanText(result.snippet ?? "");
   const combined = `${title} ${snippet}`;
-  // Product relevance must be present in the result title itself. Category/search
-  // snippets frequently contain unrelated navigation terms such as "Evening Dress".
-  if (!productPattern.test(title) || !intentPattern.test(combined) || supplierAdPattern.test(combined)) return null;
+  // Both the target product and procurement action must be in the title. Search
+  // snippets often mix navigation, comments and unrelated RFQ text into news pages.
+  if (!productPattern.test(title) || !intentPattern.test(title)) return null;
+  if (supplierAdPattern.test(combined) || nonDemandPattern.test(combined)) return null;
   if (!isBuyerDemandDetailUrl(url)) return null;
 
   const platform = platformFromUrl(url);
@@ -138,6 +145,66 @@ export function qualifyBuyerDemand(result: SerperOrganicResult, now = new Date()
     recommendation: "优先打开原始采购需求核实买方身份、截止日期与规格；确认有效后，以中国礼服产品开发、面料与稳定生产能力切入联系。",
     sourceUrl: url.href, platform, publishedAt: published?.toISOString() ?? null, quantity, contactName,
   };
+}
+
+function evidenceValue(evidence: unknown, prefix: string) {
+  if (!Array.isArray(evidence)) return "";
+  const line = evidence.find((item) => typeof item === "string" && item.startsWith(prefix));
+  return typeof line === "string" ? line.slice(prefix.length).trim() : "";
+}
+
+export function isStoredBuyerDemandValid(row: { source_url?: string | null; evidence?: unknown }) {
+  if (!row.source_url || !isBuyerDemandDetailUrl(row.source_url)) return false;
+  const title = evidenceValue(row.evidence, "需求标题：");
+  const description = evidenceValue(row.evidence, "公开描述：");
+  if (!title || !productPattern.test(title) || !intentPattern.test(title)) return false;
+  return !supplierAdPattern.test(`${title} ${description}`) && !nonDemandPattern.test(`${title} ${description}`);
+}
+
+function pageText(html: string) {
+  return cleanText(html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;|&#34;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">"));
+}
+
+export async function verifyBuyerDemandSource(
+  demand: BuyerDemandLead,
+  fetcher: typeof fetch = fetch,
+): Promise<BuyerDemandLead | null> {
+  try {
+    const response = await fetcher(demand.sourceUrl, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; BingfengLeadVerifier/1.0)" },
+      cache: "no-store",
+      redirect: "follow",
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!response.ok || !isBuyerDemandDetailUrl(response.url || demand.sourceUrl)) return null;
+    const contentType = response.headers.get("content-type") ?? "";
+    if (contentType && !contentType.includes("text/html")) return null;
+    const text = pageText((await response.text()).slice(0, 1_500_000));
+    if (text.length < 120 || /access denied|verify you are human|captcha|page not found|404 not found/i.test(text)) return null;
+    if (!productPattern.test(text) || !intentPattern.test(text) || !pageDetailPattern.test(text)) return null;
+    if (supplierAdPattern.test(text.slice(0, 6000)) || nonDemandPattern.test(text.slice(0, 6000))) return null;
+    return {
+      ...demand,
+      score: Math.min(100, demand.score + 5),
+      grade: gradeFor(Math.min(100, demand.score + 5)),
+      confidence: demand.score + 5 >= 80 ? "high" : "medium",
+      signals: [...new Set([...demand.signals, "source_page_verified"])],
+      evidence: [...demand.evidence, "系统核验：已打开具体采购页，原文同时包含礼服产品、采购动作和询盘明细。"],
+      risks: demand.risks.filter((risk) => !risk.includes("原始需求")),
+    };
+  } catch {
+    return null;
+  }
 }
 
 function serperErrorDetail(body: string) {
@@ -228,10 +295,14 @@ export async function searchBuyerDemands(): Promise<BuyerDemandSearchResult> {
     const current = unique.get(demand.sourceKey);
     if (!current || demand.score > current.score) unique.set(demand.sourceKey, demand);
   });
+  const candidates = [...unique.values()].sort((a, b) => b.score - a.score).slice(0, 24);
+  const verified = await Promise.all(candidates.map((demand) => verifyBuyerDemandSource(demand)));
+  const demands = verified.filter((demand): demand is BuyerDemandLead => Boolean(demand));
   return {
-    demands: [...unique.values()].sort((a, b) => b.score - a.score),
+    demands: demands.sort((a, b) => b.score - a.score),
     warnings,
     successfulQueries,
     failedQueries: warnings.length,
+    verificationRejectedCount: candidates.length - demands.length,
   };
 }

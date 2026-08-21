@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { describeSerperFailure, isBuyerDemandDetailUrl, qualifyBuyerDemand } from "../lib/lead-intelligence/buyer-demand.ts";
+import { describeSerperFailure, isBuyerDemandDetailUrl, isStoredBuyerDemandValid, qualifyBuyerDemand, verifyBuyerDemandSource } from "../lib/lead-intelligence/buyer-demand.ts";
 
 const now = new Date("2026-08-14T00:00:00.000Z");
 
@@ -22,6 +22,12 @@ test("rejects search/category URLs and unrelated titles with contaminated snippe
     snippet: "Evening Dress · Children Garment. Wanted: Baby Diapers. Quantity Required: 5-10.",
     date: "2 days ago",
   }, now), null);
+  assert.equal(qualifyBuyerDemand({
+    title: "Sofa.com appoints Sunayna Azam as new MD",
+    link: "https://www.linkedin.com/posts/example-news-123",
+    snippet: "Occasionwear, Bridal & Ready-to-Wear. This is showing up in the RFQ.",
+    date: "1 month ago",
+  }, now), null);
 });
 
 test("rejects supplier ads and results without procurement intent", () => {
@@ -32,9 +38,45 @@ test("rejects supplier ads and results without procurement intent", () => {
 });
 
 test("uses a stable URL-based source key for deduplication", () => {
-  const input = { title: "RFQ for wholesale formal gowns", link: "https://example.com/rfq/123",
+  const input = { title: "RFQ for wholesale formal gowns", link: "https://www.tradekey.com/buyoffer/formal-gowns-123.html",
     snippet: "Looking for supplier of evening dresses. Quantity required: 300 pcs." };
   assert.equal(qualifyBuyerDemand(input, now)?.sourceKey, qualifyBuyerDemand(input, now)?.sourceKey);
+});
+
+test("only accepts known auditable RFQ detail URL patterns", () => {
+  assert.equal(isBuyerDemandDetailUrl("https://news.example.com/rfq-evening-dress"), false);
+  assert.equal(isBuyerDemandDetailUrl("https://www.linkedin.com/company/example/posts"), false);
+  assert.equal(isBuyerDemandDetailUrl("https://www.linkedin.com/posts/buyer-rfq-evening-dresses-activity-123"), true);
+});
+
+test("revalidates stored buyer-demand evidence before keeping it pending", () => {
+  assert.equal(isStoredBuyerDemandValid({
+    source_url: "https://www.linkedin.com/posts/example-news-123",
+    evidence: ["需求标题：Sofa.com appoints Sunayna Azam as new MD", "公开描述：Occasionwear and RFQ commentary"],
+  }), false);
+  assert.equal(isStoredBuyerDemandValid({
+    source_url: "https://www.go4worldbusiness.com/buylead/view/1293192/wanted-evening-dress.html",
+    evidence: ["需求标题：Wanted: Sequin Evening Dress", "公开描述：Quantity Required: 100 Pieces"],
+  }), true);
+});
+
+test("requires procurement details on the source page before import", async () => {
+  const candidate = qualifyBuyerDemand({
+    title: "Wanted: A Line Sequin Evening Dress",
+    link: "https://www.go4worldbusiness.com/buylead/view/1293192/wanted-evening-dress.html",
+    snippet: "Buyer from Singapore. Quantity Required: 100 Pieces.", date: "3 days ago",
+  }, now);
+  assert.ok(candidate);
+  const verified = await verifyBuyerDemandSource(candidate, async () => new Response(
+    "<html><body><h1>Wanted: Sequin Evening Dress</h1><p>Buying Lead</p><p>Buyer from Singapore</p><p>Quantity Required: 100 Pieces</p><p>Looking for supplier of evening gowns.</p></body></html>",
+    { status: 200, headers: { "content-type": "text/html" } },
+  ));
+  assert.ok(verified?.signals.includes("source_page_verified"));
+  const rejected = await verifyBuyerDemandSource(candidate, async () => new Response(
+    "<html><body><h1>Sofa.com appoints a new MD</h1><p>Industry news and market report about occasionwear. RFQ is mentioned in a comment.</p></body></html>",
+    { status: 200, headers: { "content-type": "text/html" } },
+  ));
+  assert.equal(rejected, null);
 });
 
 test("turns Serper failures into useful operator messages", () => {
