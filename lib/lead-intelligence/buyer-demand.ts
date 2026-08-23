@@ -6,6 +6,9 @@ type SerperResponse = { organic?: SerperOrganicResult[]; message?: string };
 export type BuyerDemandSearchResult = {
   demands: BuyerDemandLead[];
   warnings: string[];
+  searchQueryCount: number;
+  rawResultsCount: number;
+  qualifiedCandidatesCount: number;
   successfulQueries: number;
   failedQueries: number;
   verificationRejectedCount: number;
@@ -23,15 +26,21 @@ export type BuyerDemandLead = {
   contactName: string | null;
 };
 
-const bootstrapSearchQueries = [
+const incrementalSearchQueries = [
   'site:go4worldbusiness.com/buylead/view/ ("evening dress" OR "evening wear" OR "prom dress" OR "formal gown") (wanted OR "quantity required")',
+  'site:go4worldbusiness.com/buylead/view/ ("beaded gown" OR "plus size evening dress" OR "cocktail dress") (wanted OR buyer)',
+  'site:sourcing.alibaba.com/rfq/ ("evening dress" OR "prom dress" OR "formal gown")',
+  'site:tradekey.com/buyoffer/ ("evening dress" OR "prom dress" OR "formal wear")',
+  'site:tradeindia.com/buyoffer/ ("evening dress" OR "party dress" OR "formal gown")',
+  'site:exportersindia.com/buy-leads/ ("evening dress" OR "prom dress" OR "occasion wear")',
+  'site:linkedin.com/posts/ (RFQ OR "looking for supplier" OR sourcing) ("evening dresses" OR "prom dresses" OR "formal gowns")',
+];
+const bootstrapSearchQueries = [
+  ...incrementalSearchQueries,
   '(RFQ OR "buying request" OR "looking for supplier") ("evening dresses" OR "prom dresses" OR "formal gowns" OR occasionwear) wholesale',
   '("looking for" OR seeking) ("evening dress manufacturer" OR "formalwear supplier" OR "private label prom dress")',
   '("ищу поставщика" OR "закупаем" OR "оптом требуется") ("вечерние платья" OR "платья для выпускного")',
-];
-const incrementalSearchQueries = [
-  'site:go4worldbusiness.com/buylead/view/ ("evening dress" OR "evening wear" OR "prom dress") (wanted OR "quantity required")',
-  '("looking for" OR seeking) ("evening dress supplier" OR "formalwear supplier" OR "private label prom dress")',
+  '("procurement" OR "vendor wanted" OR "supplier needed") ("beaded evening gowns" OR "plus size formal dresses")',
 ];
 
 const productPattern = /\b(evening\s*(dress|wear|gown)s?|prom\s*(dress|gown)s?|formal\s*(dress|wear|gown)s?|occasion\s*wear|cocktail\s*dresses|ball\s*gowns?|mother[- ]of[- ]the[- ]bride|beaded\s*gowns?|sequin\s*dresses)\b|вечерн\w*\s+плать\w*|плать\w*\s+для\s+выпускн\w*/i;
@@ -111,9 +120,9 @@ export function qualifyBuyerDemand(
   const title = cleanText(result.title);
   const snippet = cleanText(result.snippet ?? "");
   const combined = `${title} ${snippet}`;
-  // Both the target product and procurement action must be in the title. Search
-  // snippets often mix navigation, comments and unrelated RFQ text into news pages.
-  if (!productPattern.test(title) || !intentPattern.test(title)) return null;
+  // The product must be explicit in the title. Procurement intent may be in the
+  // title or snippet because several RFQ platforms use product-only page titles.
+  if (!productPattern.test(title) || !intentPattern.test(combined)) return null;
   if (supplierAdPattern.test(combined) || nonDemandPattern.test(combined)) return null;
   if (!isBuyerDemandDetailUrl(url)) return null;
 
@@ -169,7 +178,7 @@ export function isStoredBuyerDemandValid(row: { source_url?: string | null; evid
   if (!row.source_url || !isBuyerDemandDetailUrl(row.source_url)) return false;
   const title = evidenceValue(row.evidence, "需求标题：");
   const description = evidenceValue(row.evidence, "公开描述：");
-  if (!title || !productPattern.test(title) || !intentPattern.test(title)) return false;
+  if (!title || !productPattern.test(title) || !intentPattern.test(`${title} ${description}`)) return false;
   return !supplierAdPattern.test(`${title} ${description}`) && !nonDemandPattern.test(`${title} ${description}`);
 }
 
@@ -309,7 +318,8 @@ export async function searchBuyerDemands(
   }
   if (!successfulQueries) throw new Error(warnings[0] ?? "全部采购需求搜索均失败，请稍后重试。");
   const unique = new Map<string, BuyerDemandLead>();
-  responses.flat().forEach((result) => {
+  const rawResults = responses.flat();
+  rawResults.forEach((result) => {
     const demand = qualifyBuyerDemand(result, now, maxAgeDays);
     if (!demand || demand.score < 60) return;
     const current = unique.get(demand.sourceKey);
@@ -321,6 +331,9 @@ export async function searchBuyerDemands(
   return {
     demands: demands.sort((a, b) => b.score - a.score),
     warnings,
+    searchQueryCount: queries.length,
+    rawResultsCount: rawResults.length,
+    qualifiedCandidatesCount: candidates.length,
     successfulQueries,
     failedQueries: warnings.length,
     verificationRejectedCount: candidates.length - demands.length,

@@ -21,6 +21,7 @@ export type MarketSearchQuery = {
 
 const signalPatterns: Array<[BuyerSignal, RegExp]> = [
   ["importer", /\b(import|importer|ithalat|international sourcing|global sourcing)\b/i],
+  ["retailer_or_boutique", /\b(boutique|retailer|retail store|dress shop|fashion brand|stockist)\b/i],
   ["multi_brand", /\b(multi[- ]brand|designer brands|brands we carry|our brands)\b/i],
   ["premium_positioning", /\b(luxury|premium|designer|couture|exclusive|high[- ]end)\b/i],
   ["evening_dress_focus", /\b(evening|occasion|gala|prom|abiye|gece elbisesi|cocktail dress)\b/i],
@@ -42,7 +43,7 @@ function companyFromTitle(title: string, hostname: string) {
   return hostname.replace(/^www\./, "").split(".")[0].replace(/[-_]/g, " ");
 }
 
-function toCandidate(result: SerperOrganicResult, country: string): LeadCandidate | null {
+export function candidateFromSerperResult(result: SerperOrganicResult, country: string): LeadCandidate | null {
   if (!result.link || !result.title) return null;
 
   let url: URL;
@@ -75,7 +76,9 @@ function toCandidate(result: SerperOrganicResult, country: string): LeadCandidat
       ? "Importer / Distributor"
       : signals.includes("multi_brand")
         ? "Multi-brand Retailer"
-        : "Fashion Retailer",
+        : signals.includes("retailer_or_boutique")
+          ? "Evening Dress Brand / Retailer"
+          : "Fashion Company",
     description: result.snippet ?? result.title,
     sourceUrl: result.link,
     signals,
@@ -150,7 +153,7 @@ export async function searchWithSerper(
   const unique = new Map<string, LeadCandidate>();
   responses.forEach(({ country, results }) => {
     results.forEach((result) => {
-      const candidate = toCandidate(result, country);
+      const candidate = candidateFromSerperResult(result, country);
       if (!candidate) return;
       const existing = unique.get(candidate.id);
       if (!existing || candidate.signals.length > existing.signals.length) {

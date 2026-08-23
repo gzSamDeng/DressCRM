@@ -1,5 +1,6 @@
 export type BuyerSignal =
   | "importer"
+  | "retailer_or_boutique"
   | "multi_brand"
   | "premium_positioning"
   | "evening_dress_focus"

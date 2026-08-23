@@ -76,6 +76,9 @@ export async function POST(request: Request) {
       completed_at: new Date().toISOString() }).eq("id", job.id);
     return NextResponse.json({ candidatesFound: demands.length, insertedCount: newDemands.length,
       duplicateCount: demands.length - newDemands.length, mode,
+      searchQueryCount: searchResult.searchQueryCount,
+      rawResultsCount: searchResult.rawResultsCount,
+      qualifiedCandidatesCount: searchResult.qualifiedCandidatesCount,
       warnings: searchResult.warnings,
       successfulQueries: searchResult.successfulQueries, failedQueries: searchResult.failedQueries,
       rejectedInvalidCount: invalidDemandIds.length,

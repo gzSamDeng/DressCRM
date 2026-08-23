@@ -14,6 +14,7 @@ export const eveningDressTemplate: IndustryTemplate = {
   negativeKeywords: ["rental only", "fast fashion", "manufacturer only"],
   buyerDna: [
     { signal: "importer", label: "有进口或国际采购证据", weight: 24 },
+    { signal: "retailer_or_boutique", label: "属于礼服品牌/零售商/买手店", weight: 12 },
     { signal: "premium_positioning", label: "客单价与品牌定位匹配", weight: 18 },
     { signal: "evening_dress_focus", label: "晚礼服是核心品类", weight: 16 },
     { signal: "multi_brand", label: "多品牌买手店/零售商", weight: 14 },

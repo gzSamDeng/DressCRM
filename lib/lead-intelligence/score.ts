@@ -5,7 +5,7 @@ export function scoreLead(candidate: LeadCandidate): ScoredLead {
   const matchedRules = eveningDressTemplate.buyerDna.filter((rule) =>
     candidate.signals.includes(rule.signal),
   );
-  const score = matchedRules.reduce((total, rule) => total + rule.weight, 0);
+  const score = Math.min(100, matchedRules.reduce((total, rule) => total + rule.weight, 0));
   const grade = score >= 80 ? "A+" : score >= 65 ? "A" : score >= 45 ? "B" : "C";
   const risks: string[] = [];
 

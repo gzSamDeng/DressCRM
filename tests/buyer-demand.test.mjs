@@ -12,6 +12,17 @@ test("qualifies a recent explicit evening-dress buying request", () => {
   assert.equal(demand.platform, "go4WorldBusiness"); assert.ok(demand.score >= 80);
 });
 
+test("accepts product-only RFQ titles when the snippet contains explicit procurement intent", () => {
+  const demand = qualifyBuyerDemand({
+    title: "Wholesale Evening Dresses and Formal Gowns",
+    link: "https://www.tradekey.com/buyoffer/evening-dresses-456.html",
+    snippet: "Buyer is looking for a supplier. Quantity required: 250 pieces.",
+    date: "8 days ago",
+  }, now);
+  assert.ok(demand);
+  assert.match(demand.quantity ?? "", /250/i);
+});
+
 test("rejects search/category URLs and unrelated titles with contaminated snippets", () => {
   assert.equal(isBuyerDemandDetailUrl("https://www.go4worldbusiness.com/find?searchText=evening-dress"), false);
   assert.equal(isBuyerDemandDetailUrl("https://www.go4worldbusiness.com/buyers/evening-wear.html"), false);

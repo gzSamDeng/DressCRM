@@ -111,10 +111,12 @@ export async function POST(request: Request) {
         website: candidate.website,
       }),
     );
-    const qualifiedLeads = newCandidates
-      .map(scoreLead)
+    const scoredLeads = newCandidates.map(scoreLead);
+    const qualifiedLeads = scoredLeads
       .filter((lead) => lead.score >= minimumScore)
       .sort((a, b) => b.score - a.score);
+    const excludedCount = candidates.length - newCandidates.length;
+    const belowScoreCount = scoredLeads.length - qualifiedLeads.length;
 
     if (qualifiedLeads.length) {
       const { error: insertError } = await supabase.from("discovered_leads").insert(
@@ -147,7 +149,11 @@ export async function POST(request: Request) {
     }).eq("id", job.id);
     return NextResponse.json({
       jobId: job.id,
-      candidatesFound: newCandidates.length,
+      candidatesFound: candidates.length,
+      rawCandidatesFound: candidates.length,
+      excludedCount,
+      belowScoreCount,
+      insertedCount: qualifiedLeads.length,
       qualifiedCount: qualifiedLeads.length,
       leads: qualifiedLeads,
       mode,

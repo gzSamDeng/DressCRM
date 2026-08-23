@@ -15,7 +15,7 @@ export function LeadIntelligenceWorkbench() {
   const [marketPack, setMarketPack] = useState("global_priority");
   const [query, setQuery] = useState("premium evening dress buyer");
   const [results, setResults] = useState<ScoredLead[]>([]);
-  const [candidatesFound, setCandidatesFound] = useState(0);
+  const [summary, setSummary] = useState({ raw: 0, excluded: 0, belowScore: 0, inserted: 0 });
   const [error, setError] = useState("");
   const [customsImport, setCustomsImport] = useState<{ running: boolean; processed: number; total: number; message: string }>({ running: false, processed: 0, total: 39, message: "" });
 
@@ -29,11 +29,17 @@ export function LeadIntelligenceWorkbench() {
         body: JSON.stringify({ query, minimumScore, marketPack, mode }),
       });
       const payload = (await response.json()) as {
-        error?: string; candidatesFound?: number; leads?: ScoredLead[]; mode?: "incremental" | "bootstrap";
+        error?: string; candidatesFound?: number; rawCandidatesFound?: number; excludedCount?: number;
+        belowScoreCount?: number; insertedCount?: number; leads?: ScoredLead[]; mode?: "incremental" | "bootstrap";
       };
       if (!response.ok || payload.error) throw new Error(payload.error ?? "搜索失败，请稍后重试。");
       setResults(payload.leads ?? []);
-      setCandidatesFound(payload.candidatesFound ?? 0);
+      setSummary({
+        raw: payload.rawCandidatesFound ?? payload.candidatesFound ?? 0,
+        excluded: payload.excludedCount ?? 0,
+        belowScore: payload.belowScoreCount ?? 0,
+        inserted: payload.insertedCount ?? payload.leads?.length ?? 0,
+      });
       setRunState("complete");
     } catch (searchError) {
       setError(searchError instanceof Error ? searchError.message : "搜索失败，请稍后重试。");
@@ -159,12 +165,12 @@ export function LeadIntelligenceWorkbench() {
         ) : (
           <>
             <div className="resultSummary">
-              <div><span>发现候选</span><strong>{candidatesFound}</strong></div>
-              <div><span>进入评分</span><strong>{results.length}</strong></div>
-              <div><span>A / A+ 线索</span><strong>{results.filter((lead) => lead.score >= 65).length}</strong></div>
-              <div><span>最高分</span><strong>{results[0]?.score ?? "—"}</strong></div>
+              <div><span>网页候选</span><strong>{summary.raw}</strong></div>
+              <div><span>重复/排除</span><strong>{summary.excluded}</strong></div>
+              <div><span>低于评分门槛</span><strong>{summary.belowScore}</strong></div>
+              <div><span>新增待审核</span><strong>{summary.inserted}</strong></div>
             </div>
-            <div className="leadList">
+            {results.length ? <div className="leadList">
               {results.map((lead, index) => (
                 <article className="leadCard" key={lead.id}>
                   <div className="rank">#{String(index + 1).padStart(2, "0")}</div>
@@ -202,8 +208,13 @@ export function LeadIntelligenceWorkbench() {
                   </div>
                 </article>
               ))}
-            </div>
-            <p className="demoNotice">本次搜索结果已保存到下方待审核中心，可分页查看，不会因刷新页面而丢失。</p>
+            </div> : <div className="emptySearchResult" style={{ marginTop: 13, padding: 22, border: "1px solid #ded9cf", borderRadius: 14, background: "#fffdf8" }}>
+              <strong>本轮没有新增待审核线索</strong>
+              <p>系统检查了 {summary.raw} 家网页候选，其中 {summary.excluded} 家已存在或属于排除项，{summary.belowScore} 家低于当前 {minimumScore} 分门槛；本轮没有向待审核列表写入数据。</p>
+            </div>}
+            <p className="demoNotice">{summary.inserted > 0
+              ? `本次已将 ${summary.inserted} 条新线索保存到下方待审核中心，可分页查看。`
+              : "只有真正达到评分门槛并成功写入数据库的线索，才会显示为新增待审核。"}</p>
           </>
         )}
       </section>
