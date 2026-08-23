@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createCustomer } from "@/app/actions";
 import { eveningDressTemplate } from "@/lib/lead-intelligence/evening-dress";
 import type { ScoredLead } from "@/lib/lead-intelligence/types";
@@ -9,6 +10,7 @@ import { formatEvidenceList } from "@/lib/lead-intelligence/evidence";
 type RunState = "ready" | "searching" | "complete";
 
 export function LeadIntelligenceWorkbench() {
+  const router = useRouter();
   const [runState, setRunState] = useState<RunState>("ready");
   const [minimumScore, setMinimumScore] = useState(45);
   const [mode, setMode] = useState<"incremental" | "bootstrap">("incremental");
@@ -41,6 +43,9 @@ export function LeadIntelligenceWorkbench() {
         inserted: payload.insertedCount ?? payload.leads?.length ?? 0,
       });
       setRunState("complete");
+      // The review queue is rendered by the server page. Refresh its data after
+      // the API has committed new leads while preserving this component state.
+      router.refresh();
     } catch (searchError) {
       setError(searchError instanceof Error ? searchError.message : "搜索失败，请稍后重试。");
       setRunState("complete");
