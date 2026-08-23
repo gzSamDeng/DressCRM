@@ -2,10 +2,18 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { eveningDressTemplate } from "@/lib/lead-intelligence/evening-dress";
 import { isStoredBuyerDemandValid, searchBuyerDemands } from "@/lib/lead-intelligence/buyer-demand";
+import type { BuyerDemandSearchMode } from "@/lib/lead-intelligence/buyer-demand";
 
 export const maxDuration = 60;
 
-export async function POST() {
+export async function POST(request: Request) {
+  const body = (await request?.json?.().catch(() => ({}))) as {
+    mode?: BuyerDemandSearchMode | "full";
+  };
+  // Keep accepting the old `full` value during a rolling deployment.
+  const mode: BuyerDemandSearchMode = body.mode === "bootstrap" || body.mode === "full"
+    ? "bootstrap"
+    : "incremental";
   const supabase = await createClient();
   const { data: authData } = await supabase.auth.getUser();
   if (!authData.user) return NextResponse.json({ error: "请先登录。" }, { status: 401 });
@@ -14,7 +22,8 @@ export async function POST() {
   if (!template) return NextResponse.json({ error: "请先执行 AI Lead Intelligence 数据库迁移。" }, { status: 503 });
 
   const { data: job, error: jobError } = await supabase.from("search_jobs").insert({
-    template_id: template.id, query: "全球公开 RFQ 与采购需求 · Evening Dress",
+    template_id: template.id,
+    query: `全球公开 RFQ 与采购需求 · Evening Dress (${mode === "bootstrap" ? "首次初始化/策略补漏" : "日常增量扫描"} · 近60天)`,
     connector: "serper_public_buyer_demand", status: "running", minimum_score: 60,
     started_at: new Date().toISOString(),
   }).select("id").single();
@@ -40,7 +49,7 @@ export async function POST() {
       if (cleanupError) throw new Error(cleanupError.message);
     }
 
-    const searchResult = await searchBuyerDemands();
+    const searchResult = await searchBuyerDemands(mode);
     const demands = searchResult.demands;
     const keys = demands.map((demand) => demand.sourceKey);
     const existingResult = keys.length
@@ -66,7 +75,8 @@ export async function POST() {
     await supabase.from("search_jobs").update({ status: "complete", candidates_found: demands.length,
       completed_at: new Date().toISOString() }).eq("id", job.id);
     return NextResponse.json({ candidatesFound: demands.length, insertedCount: newDemands.length,
-      duplicateCount: demands.length - newDemands.length, warnings: searchResult.warnings,
+      duplicateCount: demands.length - newDemands.length, mode,
+      warnings: searchResult.warnings,
       successfulQueries: searchResult.successfulQueries, failedQueries: searchResult.failedQueries,
       rejectedInvalidCount: invalidDemandIds.length,
       verificationRejectedCount: searchResult.verificationRejectedCount });

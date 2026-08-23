@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { describeSerperFailure, isBuyerDemandDetailUrl, isStoredBuyerDemandValid, qualifyBuyerDemand, verifyBuyerDemandSource } from "../lib/lead-intelligence/buyer-demand.ts";
+import { BUYER_DEMAND_MAX_AGE_DAYS, describeSerperFailure, isBuyerDemandDetailUrl, isStoredBuyerDemandValid, qualifyBuyerDemand, verifyBuyerDemandSource } from "../lib/lead-intelligence/buyer-demand.ts";
 
 const now = new Date("2026-08-14T00:00:00.000Z");
 
@@ -35,6 +35,16 @@ test("rejects supplier ads and results without procurement intent", () => {
     link: "https://supplier.example.com/evening-dress", snippet: "We are a manufacturer. Shop now and add to cart." }, now), null);
   assert.equal(qualifyBuyerDemand({ title: "Best Prom Dresses for 2026",
     link: "https://fashion.example.com/prom-dresses", snippet: "Explore new formal gown trends." }, now), null);
+});
+
+test("keeps every monitoring mode inside the latest 60-day demand window", () => {
+  assert.equal(BUYER_DEMAND_MAX_AGE_DAYS, 60);
+  assert.equal(qualifyBuyerDemand({
+    title: "Wanted: Wholesale Evening Dresses",
+    link: "https://www.go4worldbusiness.com/buylead/view/1293193/wanted-wholesale-evening-dresses.html",
+    snippet: "Buyer from Canada. Quantity Required: 200 Pieces.",
+    date: "61 days ago",
+  }, now), null);
 });
 
 test("uses a stable URL-based source key for deduplication", () => {

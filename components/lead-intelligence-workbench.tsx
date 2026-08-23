@@ -11,6 +11,7 @@ type RunState = "ready" | "searching" | "complete";
 export function LeadIntelligenceWorkbench() {
   const [runState, setRunState] = useState<RunState>("ready");
   const [minimumScore, setMinimumScore] = useState(45);
+  const [mode, setMode] = useState<"incremental" | "bootstrap">("incremental");
   const [marketPack, setMarketPack] = useState("global_priority");
   const [query, setQuery] = useState("premium evening dress buyer");
   const [results, setResults] = useState<ScoredLead[]>([]);
@@ -25,9 +26,11 @@ export function LeadIntelligenceWorkbench() {
       const response = await fetch("/api/lead-intelligence/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, minimumScore, marketPack }),
+        body: JSON.stringify({ query, minimumScore, marketPack, mode }),
       });
-      const payload = (await response.json()) as { error?: string; candidatesFound?: number; leads?: ScoredLead[] };
+      const payload = (await response.json()) as {
+        error?: string; candidatesFound?: number; leads?: ScoredLead[]; mode?: "incremental" | "bootstrap";
+      };
       if (!response.ok || payload.error) throw new Error(payload.error ?? "搜索失败，请稍后重试。");
       setResults(payload.leads ?? []);
       setCandidatesFound(payload.candidatesFound ?? 0);
@@ -107,6 +110,12 @@ export function LeadIntelligenceWorkbench() {
         </div>
 
         <div className="searchConsole">
+          <label>任务模式
+            <select value={mode} onChange={(event) => setMode(event.target.value as "incremental" | "bootstrap")}>
+              <option value="incremental">日常增量扫描（默认）</option>
+              <option value="bootstrap">首次交付初始化建库</option>
+            </select>
+          </label>
           <label>市场范围
             <select value={marketPack} onChange={(event) => setMarketPack(event.target.value)}>
               <option value="global_priority">全球重点市场</option>
@@ -125,8 +134,17 @@ export function LeadIntelligenceWorkbench() {
             </select>
           </label>
           <button className="runButton" type="button" onClick={runSearch} disabled={runState === "searching"}>
-            {runState === "searching" ? "AI 正在搜索与分析…" : runState === "complete" ? "重新运行搜索" : "运行 AI 搜索"}
+            {runState === "searching"
+              ? "AI 正在搜索与分析…"
+              : mode === "bootstrap"
+                ? "开始初始化建库"
+                : runState === "complete" ? "再次增量补跑" : "立即运行增量搜索"}
           </button>
+          <div style={{ marginTop: 8, fontSize: 12, color: "#7c5a00", background: "#fff7d6", borderRadius: 8, padding: "6px 8px" }}>
+            ! {mode === "incremental"
+              ? "日常主模式：建议每12小时轮询不同国家、关键词与来源，并自动排除已有客户；此按钮用于需要立即补跑时使用。"
+              : "仅用于新系统首次交付，或新增国家、产品线、搜索来源后的重新建库；无需每周执行。"}
+          </div>
         </div>
         {error && <div className="searchError"><strong>搜索未完成</strong><span>{error}</span></div>}
 

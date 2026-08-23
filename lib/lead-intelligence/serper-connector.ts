@@ -85,12 +85,16 @@ function toCandidate(result: SerperOrganicResult, country: string): LeadCandidat
   };
 }
 
-export async function searchWithSerper(queries: MarketSearchQuery[]) {
+export async function searchWithSerper(
+  queries: MarketSearchQuery[],
+  options: { pagesPerQuery?: number } = {},
+) {
+  const pagesPerQuery = Math.max(1, Math.min(3, Math.floor(options.pagesPerQuery ?? 2)));
   const apiKey = process.env.SERPER_API_KEY;
   if (!apiKey) throw new Error("尚未配置 SERPER_API_KEY。");
 
   const tasks = queries.flatMap((marketQuery) =>
-    [1, 2].map((page) => ({ ...marketQuery, page })),
+    Array.from({ length: pagesPerQuery }, (_, index) => ({ ...marketQuery, page: index + 1 })),
   );
   const responses: Array<{ country: string; results: SerperOrganicResult[] }> = [];
   for (let index = 0; index < tasks.length; index += 5) {

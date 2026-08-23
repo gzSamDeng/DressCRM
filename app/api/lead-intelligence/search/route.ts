@@ -46,15 +46,24 @@ export async function POST(request: Request) {
     query?: string;
     minimumScore?: number;
     marketPack?: string;
+    mode?: "incremental" | "bootstrap" | "full";
   };
   const minimumScore = Math.min(100, Math.max(0, Number(body.minimumScore ?? 45)));
   const baseQuery = body.query?.trim() || "evening dress buyer";
   const selectedMarkets = marketPacks[body.marketPack ?? "global_priority"] ?? marketPacks.global_priority;
-  const intents = [
-    "evening dress boutique retailer",
-    "plus size evening dress boutique",
-    "luxury beaded evening gown boutique",
-  ];
+  // `full` is accepted temporarily for compatibility with an older deployed UI.
+  const mode = body.mode === "bootstrap" || body.mode === "full" ? "bootstrap" : "incremental";
+  const intents = mode === "bootstrap"
+    ? [
+      "evening dress boutique retailer",
+      "plus size evening dress boutique",
+      "luxury beaded evening gown boutique",
+    ]
+    : [
+      "evening dress boutique retailer",
+      "luxury beaded evening gown boutique",
+    ];
+  const pagesPerQuery = mode === "bootstrap" ? 2 : 1;
   const queries = selectedMarkets.flatMap((country) => intents.map((intent) => ({
     query: `${baseQuery} ${intent} ${country}`,
     country,
@@ -74,10 +83,11 @@ export async function POST(request: Request) {
     .from("search_jobs")
     .insert({
       template_id: template.id,
-      query: `${baseQuery} · ${selectedMarkets.join(", ")}`,
+      query: `${baseQuery} · ${selectedMarkets.join(", ")} (${mode === "bootstrap" ? "首次初始化建库" : "日常增量扫描"})`,
       connector: "serper",
       status: "running",
       minimum_score: minimumScore,
+      candidates_found: 0,
       started_at: new Date().toISOString(),
     })
     .select("id")
@@ -85,7 +95,7 @@ export async function POST(request: Request) {
   if (jobError || !job) return NextResponse.json({ error: jobError?.message ?? "无法创建搜索任务。" }, { status: 500 });
 
   try {
-    const candidates = await searchWithSerper(queries);
+    const candidates = await searchWithSerper(queries, { pagesPerQuery });
     const [{ data: customerRows }, { data: discoveredRows }] = await Promise.all([
       supabase.from("customers").select("website"),
       supabase.from("discovered_leads").select("website"),
@@ -140,6 +150,7 @@ export async function POST(request: Request) {
       candidatesFound: newCandidates.length,
       qualifiedCount: qualifiedLeads.length,
       leads: qualifiedLeads,
+      mode,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "搜索失败。";

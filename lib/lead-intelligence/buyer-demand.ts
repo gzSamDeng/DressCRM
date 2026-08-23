@@ -11,6 +11,10 @@ export type BuyerDemandSearchResult = {
   verificationRejectedCount: number;
 };
 
+export type BuyerDemandSearchMode = "incremental" | "bootstrap";
+
+export const BUYER_DEMAND_MAX_AGE_DAYS = 60;
+
 export type BuyerDemandLead = {
   sourceKey: string; company: string; country: string | null; customerType: string;
   score: number; grade: "A+" | "A" | "B"; confidence: "high" | "medium";
@@ -19,11 +23,15 @@ export type BuyerDemandLead = {
   contactName: string | null;
 };
 
-const searchQueries = [
+const bootstrapSearchQueries = [
   'site:go4worldbusiness.com/buylead/view/ ("evening dress" OR "evening wear" OR "prom dress" OR "formal gown") (wanted OR "quantity required")',
   '(RFQ OR "buying request" OR "looking for supplier") ("evening dresses" OR "prom dresses" OR "formal gowns" OR occasionwear) wholesale',
   '("looking for" OR seeking) ("evening dress manufacturer" OR "formalwear supplier" OR "private label prom dress")',
   '("ищу поставщика" OR "закупаем" OR "оптом требуется") ("вечерние платья" OR "платья для выпускного")',
+];
+const incrementalSearchQueries = [
+  'site:go4worldbusiness.com/buylead/view/ ("evening dress" OR "evening wear" OR "prom dress") (wanted OR "quantity required")',
+  '("looking for" OR seeking) ("evening dress supplier" OR "formalwear supplier" OR "private label prom dress")',
 ];
 
 const productPattern = /\b(evening\s*(dress|wear|gown)s?|prom\s*(dress|gown)s?|formal\s*(dress|wear|gown)s?|occasion\s*wear|cocktail\s*dresses|ball\s*gowns?|mother[- ]of[- ]the[- ]bride|beaded\s*gowns?|sequin\s*dresses)\b|вечерн\w*\s+плать\w*|плать\w*\s+для\s+выпускн\w*/i;
@@ -92,7 +100,11 @@ function contactFromLinkedInTitle(title: string, platform: string) {
   return name && name.length >= 2 && name.length <= 70 ? name : null;
 }
 
-export function qualifyBuyerDemand(result: SerperOrganicResult, now = new Date()): BuyerDemandLead | null {
+export function qualifyBuyerDemand(
+  result: SerperOrganicResult,
+  now = new Date(),
+  maxAgeDays = BUYER_DEMAND_MAX_AGE_DAYS,
+): BuyerDemandLead | null {
   if (!result.title || !result.link) return null;
   let url: URL;
   try { url = new URL(result.link); } catch { return null; }
@@ -108,7 +120,7 @@ export function qualifyBuyerDemand(result: SerperOrganicResult, now = new Date()
   const platform = platformFromUrl(url);
   const published = parsedDate(result.date, now);
   const ageDays = published ? Math.max(0, Math.floor((now.getTime() - published.getTime()) / 86_400_000)) : null;
-  if (ageDays !== null && ageDays > 180) return null;
+  if (ageDays !== null && ageDays > maxAgeDays) return null;
   const quantity = combined.match(quantityPattern)?.[1]?.trim() ?? null;
   const country = combined.match(countryPattern)?.[1]?.replace(/\s+(and|for|with)\b.*$/i, "").trim() ?? null;
   const contactName = contactFromLinkedInTitle(title, platform);
@@ -238,15 +250,15 @@ export function describeSerperFailure(status: number, body = "") {
   return detail ? `Serper 搜索失败（${status}）：${detail}` : `Serper 搜索失败（${status}）。`;
 }
 
-function sixMonthsAgo(now = new Date()) {
+function lookbackDate(maxAgeDays: number, now = new Date()) {
   const date = new Date(now);
-  date.setUTCMonth(date.getUTCMonth() - 6);
+  date.setUTCDate(date.getUTCDate() - maxAgeDays);
   return date.toISOString().slice(0, 10);
 }
 
-async function runSerperQuery(query: string, apiKey: string) {
+async function runSerperQuery(query: string, apiKey: string, maxAgeDays = BUYER_DEMAND_MAX_AGE_DAYS) {
   // Use Google's broadly supported `after:` operator instead of Serper's optional tbs parameter.
-  const datedQuery = `${query} after:${sixMonthsAgo()}`;
+  const datedQuery = `${query} after:${lookbackDate(maxAgeDays)}`;
   const response = await fetch("https://google.serper.dev/search", {
     method: "POST",
     headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
@@ -266,15 +278,23 @@ async function runSerperQuery(query: string, apiKey: string) {
   return payload.organic ?? [];
 }
 
-export async function searchBuyerDemands(): Promise<BuyerDemandSearchResult> {
+export async function searchBuyerDemands(
+  mode: BuyerDemandSearchMode = "incremental",
+): Promise<BuyerDemandSearchResult> {
   const apiKey = process.env.SERPER_API_KEY;
   if (!apiKey) throw new Error("尚未配置 SERPER_API_KEY。");
+  const now = new Date();
+  // Both initial database creation and daily incremental monitoring only keep
+  // demands from the latest 60 days. Bootstrap expands source coverage; it does
+  // not make stale procurement requests eligible again.
+  const maxAgeDays = BUYER_DEMAND_MAX_AGE_DAYS;
+  const queries = mode === "bootstrap" ? bootstrapSearchQueries : incrementalSearchQueries;
   const responses: SerperOrganicResult[][] = [];
   const warnings: string[] = [];
   let successfulQueries = 0;
-  for (let index = 0; index < searchQueries.length; index += 2) {
+  for (let index = 0; index < queries.length; index += 2) {
     const batch = await Promise.allSettled(
-      searchQueries.slice(index, index + 2).map((query) => runSerperQuery(query, apiKey)),
+      queries.slice(index, index + 2).map((query) => runSerperQuery(query, apiKey, maxAgeDays)),
     );
     batch.forEach((result, batchIndex) => {
       if (result.status === "fulfilled") {
@@ -290,7 +310,7 @@ export async function searchBuyerDemands(): Promise<BuyerDemandSearchResult> {
   if (!successfulQueries) throw new Error(warnings[0] ?? "全部采购需求搜索均失败，请稍后重试。");
   const unique = new Map<string, BuyerDemandLead>();
   responses.flat().forEach((result) => {
-    const demand = qualifyBuyerDemand(result);
+    const demand = qualifyBuyerDemand(result, now, maxAgeDays);
     if (!demand || demand.score < 60) return;
     const current = unique.get(demand.sourceKey);
     if (!current || demand.score > current.score) unique.set(demand.sourceKey, demand);
