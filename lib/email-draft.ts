@@ -10,7 +10,7 @@ export const SALES_EMAIL_SIGNATURE = [
   "Regards,",
   "Sam Deng",
   "Guangzhou Bingfeng Information Technology Co., Ltd.",
-  "WhatsApp: +8617728195735(Sam)",
+  "WhatsApp: +8615011905735(Sam)",
 ].join("\n");
 
 export type CustomerSignalContext = {
