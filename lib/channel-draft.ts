@@ -93,7 +93,7 @@ export function channelDraftFallback(customer: Customer, channel: ManualChannel,
     "",
     "Regards,",
     "Sam Deng",
-    "WhatsApp: +86 17728195735",
+    "WhatsApp: +8617728195735",
   ].join("\n");
 }
 
