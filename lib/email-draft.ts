@@ -9,7 +9,7 @@ export const SALES_EMAIL_SIGNATURE = [
   "-",
   "Regards,",
   "Sam Deng",
-  "Guangzhou Bingfeng Information Technology Co., Ltd.",
+  "Explore our B2B evening dress collection: https://auroragowns.com/",
   "WhatsApp: +8615011905735(Sam)",
 ].join("\n");
 
