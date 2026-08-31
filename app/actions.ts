@@ -29,6 +29,61 @@ export async function login(formData: FormData) {
   redirect("/");
 }
 
+export async function requestPasswordReset(formData: FormData) {
+  const supabase = await createClient();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+
+  if (!email || !email.includes("@")) {
+    redirect("/forgot-password?error=" + encodeURIComponent("请输入有效的邮箱地址。"));
+  }
+
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "https://crm.auroragowns.com").replace(/\/$/, "");
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: appUrl + "/auth/callback?next=/reset-password",
+  });
+
+  if (error) {
+    console.error("Failed to request password reset", { code: error.code, message: error.message });
+    redirect(
+      "/forgot-password?error=" +
+        encodeURIComponent("暂时无法发送重置邮件，请稍后重试或联系管理员。"),
+    );
+  }
+
+  redirect("/forgot-password?sent=1");
+}
+
+export async function updatePassword(formData: FormData) {
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+
+  if (password.length < 8) {
+    redirect("/reset-password?error=" + encodeURIComponent("新密码至少需要 8 个字符。"));
+  }
+
+  if (password !== confirmPassword) {
+    redirect("/reset-password?error=" + encodeURIComponent("两次输入的密码不一致。"));
+  }
+
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) {
+    redirect("/login?error=" + encodeURIComponent("密码重置链接无效或已过期，请重新申请。"));
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    console.error("Failed to update password", { code: error.code, message: error.message });
+    redirect(
+      "/reset-password?error=" +
+        encodeURIComponent("密码更新失败，请更换一个密码后重试。"),
+    );
+  }
+
+  await supabase.auth.signOut();
+  redirect("/login?message=" + encodeURIComponent("密码已更新，请使用新密码登录。"));
+}
+
 export async function logout() {
   const supabase = await createClient();
   await supabase.auth.signOut();
