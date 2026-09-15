@@ -2,11 +2,18 @@ import { NextResponse } from "next/server";
 import {
   appendSalesSignature,
   buildDraftContext,
+  CUSTOMER_EMAIL_ALGORITHM_VERSION,
   containsCjk,
   contextualTemplateDraft,
   isCustomerFocusedEnglishSubject,
+  selectCustomerEmailStrategy,
   type CustomerSignalContext,
 } from "@/lib/email-draft";
+import {
+  isResearchFresh,
+  researchCustomerSignals,
+  selectFreshCustomerSignals,
+} from "@/lib/customer-research";
 import { listCustomerMessageHistory, type GmailMessageContext } from "@/lib/gmail";
 import { getSharedGmailAccount } from "@/lib/shared-gmail";
 import { createClient } from "@/lib/supabase/server";
@@ -21,7 +28,12 @@ type DraftContextCounts = {
   follow_ups: number;
   email_messages: number;
   signals: number;
+  intelligence_refreshed: boolean;
+  strategy: string;
+  algorithm_version: string;
 };
+
+export const maxDuration = 60;
 
 function responseText(data: { output_text?: string; output?: Array<{ content?: Array<{ type?: string; text?: string }> }> }) {
   if (data.output_text) return data.output_text;
@@ -32,8 +44,21 @@ function responseText(data: { output_text?: string; output?: Array<{ content?: A
     .join("\n");
 }
 
-function contextCounts(followUps: FollowUp[], messages: GmailMessageContext[], signals: CustomerSignalContext[]): DraftContextCounts {
-  return { follow_ups: followUps.length, email_messages: messages.length, signals: signals.length };
+function contextCounts(
+  customer: Customer,
+  followUps: FollowUp[],
+  messages: GmailMessageContext[],
+  signals: CustomerSignalContext[],
+  intelligenceRefreshed: boolean,
+): DraftContextCounts {
+  return {
+    follow_ups: followUps.length,
+    email_messages: messages.length,
+    signals: signals.length,
+    intelligence_refreshed: intelligenceRefreshed,
+    strategy: selectCustomerEmailStrategy(customer, followUps, messages, signals).label,
+    algorithm_version: CUSTOMER_EMAIL_ALGORITHM_VERSION,
+  };
 }
 
 export async function POST(request: Request) {
@@ -55,14 +80,38 @@ export async function POST(request: Request) {
     ] = await Promise.all([
       supabase.from("customers").select("*").eq("id", payload.customer_id).single(),
       supabase.from("follow_ups").select("*").eq("customer_id", payload.customer_id).order("happened_at", { ascending: false }).limit(20),
-      supabase.from("customer_signals").select("title,summary,source_url,signal_type,relevance_score,published_at").eq("customer_id", payload.customer_id).order("relevance_score", { ascending: false }).limit(5),
+      supabase.from("customer_signals").select("title,summary,source_url,signal_type,relevance_score,published_at,created_at").eq("customer_id", payload.customer_id).order("relevance_score", { ascending: false }).limit(12),
     ]);
     if (customerError || !customerData) return NextResponse.json({ error: "客户线索不存在。" }, { status: 404 });
 
     const customer = customerData as Customer;
     const messagingProfile = buildCustomerMessagingProfile(customer);
     const followUps = (followUpData ?? []) as FollowUp[];
-    const signals = (signalData ?? []) as CustomerSignalContext[];
+    let storedSignals = (signalData ?? []) as CustomerSignalContext[];
+    let intelligenceRefreshed = false;
+    const researchKey = process.env.SERPER_API_KEY;
+    if (researchKey && !storedSignals.some((signal) => isResearchFresh(signal.created_at))) {
+      try {
+        const researched = await researchCustomerSignals(customer, researchKey);
+        intelligenceRefreshed = true;
+        if (researched.length) {
+          await supabase.from("customer_signals").upsert(researched, {
+            onConflict: "customer_id,source_url",
+            ignoreDuplicates: true,
+          });
+          const { data: refreshedSignals } = await supabase
+            .from("customer_signals")
+            .select("title,summary,source_url,signal_type,relevance_score,published_at,created_at")
+            .eq("customer_id", payload.customer_id)
+            .order("relevance_score", { ascending: false })
+            .limit(12);
+          storedSignals = (refreshedSignals ?? storedSignals) as CustomerSignalContext[];
+        }
+      } catch {
+        // Existing verified context remains usable when live research is temporarily unavailable.
+      }
+    }
+    const signals = selectFreshCustomerSignals(storedSignals).slice(0, 6);
     let messages: GmailMessageContext[] = [];
     try {
       const shared = await getSharedGmailAccount();
@@ -74,7 +123,7 @@ export async function POST(request: Request) {
     }
 
     const fallback = contextualTemplateDraft(customer, followUps, messages, purpose);
-    const counts = contextCounts(followUps, messages, signals);
+    const counts = contextCounts(customer, followUps, messages, signals, intelligenceRefreshed);
     const directOpenAiKey = process.env.OPENAI_API_KEY;
     const gatewayToken = process.env.AI_GATEWAY_API_KEY
       || process.env.VERCEL_OIDC_TOKEN
@@ -86,7 +135,11 @@ export async function POST(request: Request) {
       "Role: You write high-quality B2B export sales follow-up emails for an evening-dress supplier.",
       "Goal: Produce a natural English subject and body that are specific to this customer and the actual relationship history.",
       "Success criteria:",
-      "- Selectively use the customer's business background, positioning, relevant products, CRM follow-ups, Gmail conversation, and recent business signals.",
+      "- Analyze the full relationship before writing: customer background, our previous outbound emails, the customer's inbound replies, CRM follow-ups and recent verified business signals.",
+      "- If the latest customer email is inbound, it is the primary source of truth. Answer its actual questions, objections, requested information and timing before introducing a new sales angle.",
+      "- Distinguish customer statements from our own earlier claims. Never present something from an outbound email as if the customer said it.",
+      "- Do not repeat the subject, opening sentence, main proof point or call to action from recent outbound emails.",
+      "- When using a market signal, use only one supplied source, describe it cautiously and never treat public news as proof of purchasing intent. Never call an undated website page a recent announcement.",
       "- First identify whether the recipient is a fashion brand, retailer, multi-brand retailer, apparel company, or importer/distributor from the resolved communication profile.",
       "- Use recipient vocabulary that matches that role. Never call a brand or retailer an international buyer.",
       "- For a first contact, reference at least one verified, recipient-specific fact from the website, evidence, product assortment, location, or business type. Never use the generic opening 'I came across'.",
@@ -121,7 +174,7 @@ export async function POST(request: Request) {
         },
         body: JSON.stringify({
           model: useGateway
-            ? process.env.AI_GATEWAY_MODEL || "openai/gpt-5.4-mini"
+            ? process.env.AI_GATEWAY_MODEL || "openai/gpt-5.6-terra"
             : process.env.OPENAI_MODEL || "gpt-5.6-terra",
           instructions,
           input: buildDraftContext(customer, followUps, messages, signals, purpose),

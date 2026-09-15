@@ -99,6 +99,8 @@ export function EmailComposer({ customers, totalCustomers, initialReply = null }
   useEffect(() => {
     if (filteredCustomers.some((item) => item.id === customerId)) return;
     const nextCustomer = filteredCustomers[0];
+    // This effect keeps the selected option valid after the user changes the customer filters.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCustomerId(nextCustomer?.id || "");
     setTo(nextCustomer?.contact_email || "");
   }, [customerId, filteredCustomers]);
@@ -169,7 +171,14 @@ export function EmailComposer({ customers, totalCustomers, initialReply = null }
         subject?: string;
         body?: string;
         source?: "ai" | "template";
-        context?: { follow_ups: number; email_messages: number; signals: number };
+        context?: {
+          follow_ups: number;
+          email_messages: number;
+          signals: number;
+          intelligence_refreshed?: boolean;
+          strategy?: string;
+          algorithm_version?: string;
+        };
         error?: string;
       };
       if (!response.ok || !data.subject || !data.body) throw new Error(data.error || "草稿生成失败。");
@@ -179,7 +188,7 @@ export function EmailComposer({ customers, totalCustomers, initialReply = null }
       setStatus({
         ok: true,
         message: data.source === "ai" && context
-          ? `AI 已综合客户背景、${context.follow_ups} 条跟进记录、${context.email_messages} 封往来邮件和 ${context.signals} 条商业信号生成草稿，请确认后发送。`
+          ? `AI 已综合客户背景、${context.follow_ups} 条跟进记录、${context.email_messages} 封往来邮件和 ${context.signals} 条近期商业信号，按“${context.strategy || "客户情报"}”角度生成草稿${context.intelligence_refreshed ? "；本次已同步最新公开动态" : ""}。请确认后发送。`
           : "已根据客户背景和可用的历史沟通记录生成草稿，请确认后发送。",
       });
     } catch (error) {

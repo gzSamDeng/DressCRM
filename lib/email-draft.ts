@@ -13,6 +13,8 @@ export const SALES_EMAIL_SIGNATURE = [
   "WhatsApp: +8615011905735(Sam)",
 ].join("\n");
 
+export const CUSTOMER_EMAIL_ALGORITHM_VERSION = "2026.09-intelligence";
+
 export type CustomerSignalContext = {
   title: string;
   summary: string | null;
@@ -20,6 +22,13 @@ export type CustomerSignalContext = {
   relevance_score: number;
   published_at: string | null;
   source_url: string;
+  created_at?: string | null;
+};
+
+export type CustomerEmailStrategy = {
+  key: "customer_reply" | "market_signal" | "product_fit" | "collection_planning" | "production_value" | "reengagement";
+  label: string;
+  instruction: string;
 };
 
 function clean(value: string | null | undefined, maxLength = 1800) {
@@ -45,6 +54,65 @@ function englishReference(value: string | null | undefined, fallback: string, ma
   return reference && !containsCjk(reference) ? reference : fallback;
 }
 
+function chronologicalMessages(messages: GmailMessageContext[]) {
+  return [...messages].sort((left, right) => Date.parse(left.date) - Date.parse(right.date));
+}
+
+export function selectCustomerEmailStrategy(
+  customer: Customer,
+  followUps: FollowUp[],
+  messages: GmailMessageContext[],
+  signals: CustomerSignalContext[],
+): CustomerEmailStrategy {
+  const chronological = chronologicalMessages(messages);
+  const latestMessage = chronological.at(-1);
+  if (latestMessage?.direction === "received") {
+    return {
+      key: "customer_reply",
+      label: "客户回复优先",
+      instruction: "The customer's latest inbound email is the primary source of truth. Directly answer its questions, objections, requested information and timing before introducing any new sales angle.",
+    };
+  }
+
+  const sentCount = Math.max(
+    chronological.filter((message) => message.direction === "sent").length,
+    followUps.filter((item) => /email|邮件/i.test(item.channel)).length,
+  );
+  const hasRecentDatedSignal = signals.some((signal) => Boolean(signal.published_at));
+  if (hasRecentDatedSignal && sentCount % 3 === 0) {
+    return {
+      key: "market_signal",
+      label: "近期市场动态",
+      instruction: "Use one recent, relevant and clearly attributed business signal as a concise conversation hook. State it cautiously and never imply that a public announcement proves buying intent.",
+    };
+  }
+
+  const rotating: CustomerEmailStrategy[] = [
+    {
+      key: "product_fit",
+      label: "产品匹配",
+      instruction: "Lead with a specific product-fit hypothesis for the recipient's assortment or brand direction, then ask one useful qualification question.",
+    },
+    {
+      key: "collection_planning",
+      label: "系列规划",
+      instruction: "Focus on the recipient's likely collection-planning needs and timing. Offer a focused next step rather than a broad catalogue dump.",
+    },
+    {
+      key: "production_value",
+      label: "开发与生产价值",
+      instruction: "Focus on development, fabric sourcing, quality consistency or production reliability, selecting only the capability most relevant to this customer.",
+    },
+    {
+      key: "reengagement",
+      label: "低压力重新联系",
+      instruction: "Write a short, low-pressure re-engagement note that adds a new reason to reply. Do not merely ask whether the previous email was seen.",
+    },
+  ];
+  const seed = customer.company.split("").reduce((sum, character) => sum + character.charCodeAt(0), 0);
+  return rotating[(seed + sentCount) % rotating.length];
+}
+
 export function appendSalesSignature(body: string) {
   const withoutExistingClosing = body
     .trim()
@@ -61,6 +129,7 @@ export function buildDraftContext(
   purpose: string,
 ) {
   const messagingProfile = buildCustomerMessagingProfile(customer);
+  const emailStrategy = selectCustomerEmailStrategy(customer, followUps, messages, signals);
   const customerProfile = [
     `Company: ${clean(customer.company, 300)}`,
     `Website: ${clean(customer.website, 500) || "Unknown"}`,
@@ -94,6 +163,12 @@ export function buildDraftContext(
     ].join("\n")).join("\n\n")
     : "None";
 
+  const recentOutboundWording = chronologicalMessages(messages)
+    .filter((item) => item.direction === "sent")
+    .slice(-3)
+    .map((item, index) => `${index + 1}. Subject: ${clean(item.subject, 220)}\nOpening/body excerpt: ${clean(item.content || item.snippet, 700)}`)
+    .join("\n\n") || "None";
+
   const signalHistory = signals.length
     ? signals.map((item, index) => [
       `${index + 1}. ${clean(item.title, 500)} | relevance ${item.relevance_score}`,
@@ -103,6 +178,12 @@ export function buildDraftContext(
     : "None";
 
   return [
+    `EMAIL ALGORITHM VERSION: ${CUSTOMER_EMAIL_ALGORITHM_VERSION}`,
+    "SELECTED EMAIL STRATEGY",
+    `${emailStrategy.label}: ${emailStrategy.instruction}`,
+    "Strategy hierarchy: an unanswered customer email always outranks market news, CRM assumptions and the requested sales purpose.",
+    "Do not repeat the subject, opening sentence, main proof point or call to action used in recent outbound emails.",
+    "",
     "RESOLVED CUSTOMER COMMUNICATION PROFILE",
     roleSpecificWritingRules(messagingProfile),
     `Verified background summary: ${messagingProfile.verifiedBackground}`,
@@ -116,6 +197,9 @@ export function buildDraftContext(
     "",
     "MATCHED GMAIL HISTORY (oldest first)",
     gmailHistory,
+    "",
+    "RECENT OUTBOUND WORDING TO AVOID REPEATING",
+    recentOutboundWording,
     "",
     "RECENT BUSINESS SIGNALS",
     signalHistory,

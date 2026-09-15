@@ -14,7 +14,7 @@ export function SignalRefreshButton() {
       const response = await fetch("/api/customer-signals/refresh", { method: "POST" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "刷新失败");
-      setMessage(`已检查 ${data.customersChecked} 家重点客户，新增 ${data.signalsSaved} 条商业信号。`);
+      setMessage(`已检查 ${data.customersChecked} 家重点客户，发现 ${data.signalsFound ?? data.signalsSaved} 条相关动态，新增 ${data.signalsSaved} 条。${data.customersFailed ? ` ${data.customersFailed} 家暂时检索失败。` : ""}`);
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "刷新失败");
