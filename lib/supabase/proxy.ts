@@ -32,7 +32,8 @@ export async function updateSession(request: NextRequest) {
   const isPublicAuthPath =
     isLogin ||
     pathname === "/forgot-password" ||
-    pathname.startsWith("/auth/callback");
+    pathname.startsWith("/auth/callback") ||
+    pathname === "/api/cron/customer-research";
 
   if (!data?.claims && !isPublicAuthPath) {
     const url = request.nextUrl.clone();
