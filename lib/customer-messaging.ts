@@ -151,6 +151,22 @@ export function buildCustomerMessagingProfile(customer: Customer): CustomerMessa
   };
 }
 
+export function repairGenericOpening(
+  text: string,
+  customer: Customer,
+  profile: CustomerMessagingProfile = buildCustomerMessagingProfile(customer),
+) {
+  if (!/\bi came across\b/i.test(text)) return text;
+  const company = customerDisplayName(customer.company);
+  const replacement = profile.archetype === "unknown"
+    ? "I am contacting " + company + " to understand whether you work with external production partners for occasionwear."
+    : "Given " + company + "'s position as a " + profile.archetypeLabel + ", " + profile.productOpportunity + " appears to be a relevant area for potential collaboration.";
+  return text.replace(
+    /\bi came across\b[^.!?\r\n]*(?:[.!?]|(?=\r?\n)|$)/i,
+    replacement,
+  );
+}
+
 const hardTemplateLeakPatterns: Array<{ pattern: RegExp; reason: string }> = [
   { pattern: /\bnoticed your focus on\s+(?:both|unknown|unclassified)\b/i, reason: "包含无效产品分类" },
   { pattern: /\banaly[sz]e from existing notes\b/i, reason: "包含内部分析模板残留" },

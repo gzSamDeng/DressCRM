@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   buildCustomerMessagingProfile,
   outboundCopyIssues,
+  repairGenericOpening,
 } from "@/lib/customer-messaging";
 import type { Customer, FollowUp } from "@/types/database";
 
@@ -158,7 +159,7 @@ export async function POST(request: Request) {
     }
     if (!draft.subject?.trim() || !draft.body?.trim()) return NextResponse.json({ ...fallback, context: counts });
     const aiSubject = draft.subject.trim();
-    const aiBody = draft.body.trim();
+    const aiBody = repairGenericOpening(draft.body.trim(), customer, messagingProfile);
     const copyIssues = outboundCopyIssues(`${aiSubject}\n${aiBody}`, messagingProfile, { requireProductLanguage: true });
     if (copyIssues.length) return NextResponse.json({ ...fallback, context: counts, quality_fallback: copyIssues });
     const subject = isCustomerFocusedEnglishSubject(aiSubject) ? aiSubject : fallback.subject;

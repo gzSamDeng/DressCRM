@@ -4,7 +4,11 @@ import { coldCadenceDays, engagedCadenceDays } from "@/lib/follow-up-priority";
 import { buildRawEmail, sendGmailMessage } from "@/lib/gmail";
 import { getSharedGmailAccount } from "@/lib/shared-gmail";
 import { createClient } from "@/lib/supabase/server";
-import { buildCustomerMessagingProfile, outboundCopyIssues } from "@/lib/customer-messaging";
+import {
+  buildCustomerMessagingProfile,
+  outboundCopyIssues,
+  repairGenericOpening,
+} from "@/lib/customer-messaging";
 import type { Customer } from "@/types/database";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -41,7 +45,10 @@ export async function POST(request: Request) {
       .single();
     if (customerError || !customerData) return NextResponse.json({ error: "客户线索不存在。" }, { status: 404 });
     const customer = customerData as Customer;
-    const copyIssues = outboundCopyIssues(`${subject}\n${body}`, buildCustomerMessagingProfile(customer));
+    const messagingProfile = buildCustomerMessagingProfile(customer);
+    const checkedBody = repairGenericOpening(body, customer, messagingProfile);
+    const openingRepaired = checkedBody !== body;
+    const copyIssues = outboundCopyIssues([subject, checkedBody].join("\n"), messagingProfile);
     if (copyIssues.length) {
       return NextResponse.json({
         error: `发送前质检未通过：${copyIssues.join("；")}。请重新生成或修改后再发送。`,
@@ -61,7 +68,7 @@ export async function POST(request: Request) {
       to,
       cc: ccAddresses.join(", "),
       subject,
-      body,
+      body: checkedBody,
       replyToMessageId: replyMessageId || undefined,
       attachment,
     });
@@ -94,7 +101,13 @@ export async function POST(request: Request) {
     revalidatePath("/follow-up");
     revalidatePath(`/customers/${customer.id}`);
     revalidatePath("/dashboard");
-    return NextResponse.json({ ok: true, message: "邮件已发送，并已自动写入客户跟进记录。", id: sent.id });
+    return NextResponse.json({
+      ok: true,
+      message: openingRepaired
+        ? "邮件已发送；系统已自动将群发式开头替换为结合客户类型和产品方向的表述，并写入跟进记录。"
+        : "邮件已发送，并已自动写入客户跟进记录。",
+      id: sent.id,
+    });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "邮件发送失败。" }, { status: 500 });
   }

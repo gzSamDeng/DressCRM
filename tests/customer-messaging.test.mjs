@@ -5,6 +5,7 @@ import {
   classifyCustomer,
   customerDisplayName,
   outboundCopyIssues,
+  repairGenericOpening,
   roleSpecificWritingRules,
 } from "../lib/customer-messaging.ts";
 
@@ -92,4 +93,21 @@ test("shortens search-result titles before using a company name in outreach", ()
     customerDisplayName("After Five Fashion: Prom dresses, Evening dresses, Mother of the ..."),
     "After Five Fashion",
   );
+});
+
+test("repairs a generic opening with customer-specific positioning before send", () => {
+  const target = customer({
+    company: "Aware Barcelona",
+    customer_type: "Occasionwear Fashion Brand",
+    recommended_line: "Refined commercial evening dresses",
+  });
+  const profile = buildCustomerMessagingProfile(target);
+  const repaired = repairGenericOpening(
+    "Dear Carmen Team,\n\nI came across Aware Barcelona and noticed your eveningwear collection.\n\nWould you be open to a focused product discussion?",
+    target,
+    profile,
+  );
+  assert.doesNotMatch(repaired, /\bi came across\b/i);
+  assert.match(repaired, /Aware Barcelona's position as a fashion or eveningwear brand/i);
+  assert.deepEqual(outboundCopyIssues(repaired, profile, { requireProductLanguage: true }), []);
 });
