@@ -1,4 +1,5 @@
 import type { Customer } from "@/types/database";
+import { resolveCompanyName } from "./company-name.ts";
 
 export type CustomerArchetype =
   | "brand"
@@ -30,7 +31,13 @@ function usableEnglish(value: string | null | undefined, maxLength = 500) {
   return result && !cjkPattern.test(result) && !internalFragmentPattern.test(result) ? result : "";
 }
 
-export function customerDisplayName(value: string | null | undefined) {
+export function customerDisplayName(
+  value: string | null | undefined,
+  website?: string | null,
+  city?: string | null,
+) {
+  const resolved = resolveCompanyName({ company: value, website, city });
+  if (resolved !== "Unknown Company") return resolved;
   const raw = usableEnglish(value, 180);
   if (!raw) return "your team";
   const concise = raw
@@ -157,7 +164,7 @@ export function repairGenericOpening(
   profile: CustomerMessagingProfile = buildCustomerMessagingProfile(customer),
 ) {
   if (!/\bi came across\b/i.test(text)) return text;
-  const company = customerDisplayName(customer.company);
+  const company = customerDisplayName(customer.company, customer.website, customer.city);
   const replacement = profile.archetype === "unknown"
     ? "I am contacting " + company + " to understand whether you work with external production partners for occasionwear."
     : "Given " + company + "'s position as a " + profile.archetypeLabel + ", " + profile.productOpportunity + " appears to be a relevant area for potential collaboration.";

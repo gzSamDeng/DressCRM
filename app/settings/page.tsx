@@ -4,7 +4,8 @@ import { SystemUserForm } from "@/components/system-user-form";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAppProfile, roleLabels, type AppPermissions, type AppProfile, type AppRole } from "@/lib/access-control";
-import { createSalesTeam, updateSystemUser } from "@/app/settings/actions";
+import { companyNameProposal } from "@/lib/company-name";
+import { createSalesTeam, repairCustomerCompanyNames, updateSystemUser } from "@/app/settings/actions";
 import "./settings.css";
 
 type Team = { id: string; name: string; is_active: boolean };
@@ -14,7 +15,12 @@ function formatDate(value?: string | null) {
   return new Date(value).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
 }
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ company_names_updated?: string }>;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect("/login");
@@ -28,10 +34,11 @@ export default async function SettingsPage() {
   }
 
   const admin = createAdminClient();
-  const [{ data: authData, error }, { data: profileData }, { data: teamData }] = await Promise.all([
+  const [{ data: authData, error }, { data: profileData }, { data: teamData }, { data: customerData }] = await Promise.all([
     admin.auth.admin.listUsers({ page: 1, perPage: 200 }),
     admin.from("user_profiles").select("id,email,display_name,role,team_id,manager_id,is_active,permissions").order("created_at"),
     admin.from("sales_teams").select("id,name,is_active").order("created_at"),
+    admin.from("customers").select("id,company,website,city").eq("is_excluded", false).order("company"),
   ]);
   const users = authData?.users ?? [];
   const profiles = (profileData ?? []) as AppProfile[];
@@ -45,6 +52,10 @@ export default async function SettingsPage() {
       label: `${profile.display_name || profile.email || "未命名"} · ${roleLabels[profile.role]}`,
       role: profile.role,
     }));
+  const companyNameProposals = (customerData ?? [])
+    .map(companyNameProposal)
+    .filter((proposal): proposal is NonNullable<typeof proposal> => Boolean(proposal));
+  const updatedCount = Math.max(0, Number(params.company_names_updated ?? 0) || 0);
 
   return <div className="shell"><Header/><main className="container settingsPage">
     <div className="pageHeader"><div><span className="pageKicker">SYSTEM SETTINGS</span><h2>账户、团队与权限</h2><p>通过角色模板控制个人、团队和全公司的数据范围，并可单独调整业务权限。</p></div><div className="settingsAdminBadge">老板账号：{auth.user.email}</div></div>
@@ -53,6 +64,25 @@ export default async function SettingsPage() {
       <div><strong>业务员</strong><span>只查看和跟进分配给自己的客户</span></div>
       <div><strong>业务总监</strong><span>查看所属团队，并在团队内部管理客户</span></div>
       <div><strong>老板</strong><span>查看全公司、跨团队比较并管理系统权限</span></div>
+    </section>
+
+    <section className="card companyNameAudit">
+      <div className="companyNameAuditHeader">
+        <div><h3>客户企业名称校验</h3><p>识别被产品标题、搜索结果标题或促销语污染的企业名称，并以官网域名中的品牌名统一修正。</p></div>
+        <strong>{companyNameProposals.length}</strong>
+      </div>
+      {updatedCount > 0 ? <div className="settingsNotice success">已修正 {updatedCount} 个客户名称；后续 AI 开发信将直接使用正确名称。</div> : null}
+      {companyNameProposals.length ? <>
+        <div className="companyNameProposalList">
+          {companyNameProposals.slice(0, 40).map((proposal) => <div key={proposal.id}>
+            <span>{proposal.current}</span><b>→</b><strong>{proposal.proposed}</strong><small>{proposal.website || "无官网"}</small>
+          </div>)}
+        </div>
+        <form action={repairCustomerCompanyNames} className="companyNameAuditAction">
+          <small>只修改上方已识别为产品/页面标题的记录，不改动正常公司名称。</small>
+          <button className="primary" type="submit">统一修正 {companyNameProposals.length} 个名称</button>
+        </form>
+      </> : <p className="companyNameAuditEmpty">当前客户名称均已通过校验。</p>}
     </section>
 
     <div className="settingsLayout">

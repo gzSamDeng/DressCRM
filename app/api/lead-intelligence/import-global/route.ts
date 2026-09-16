@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { eveningDressTemplate } from "@/lib/lead-intelligence/evening-dress";
 import globalLeadReport from "@/data/global-evening-dress-leads.generated.json";
 import { isExcludedLead, normalizedDomain } from "@/lib/lead-intelligence/exclusions";
+import { resolveCompanyName } from "@/lib/company-name";
 
 export const maxDuration = 60;
 
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
     const payload = newSeeds.map((lead) => ({
       source_key: lead.source_key,
       search_job_id: job!.id,
-      company: lead.company,
+      company: resolveCompanyName({ company: lead.company, website: lead.website, city: lead.city }),
       website: lead.website || null,
       country: lead.country,
       city: lead.city || null,

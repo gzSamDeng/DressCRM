@@ -2,6 +2,7 @@ import type { Customer, FollowUp } from "@/types/database";
 import type { GmailMessageContext } from "@/lib/gmail";
 import {
   buildCustomerMessagingProfile,
+  customerDisplayName,
   roleSpecificWritingRules,
 } from "@/lib/customer-messaging";
 
@@ -130,8 +131,9 @@ export function buildDraftContext(
 ) {
   const messagingProfile = buildCustomerMessagingProfile(customer);
   const emailStrategy = selectCustomerEmailStrategy(customer, followUps, messages, signals);
+  const companyName = customerDisplayName(customer.company, customer.website, customer.city);
   const customerProfile = [
-    `Company: ${clean(customer.company, 300)}`,
+    `Company: ${companyName}`,
     `Website: ${clean(customer.website, 500) || "Unknown"}`,
     `Location: ${[customer.city, customer.country].filter(Boolean).join(", ") || "Unknown"}`,
     `Customer type: ${clean(customer.customer_type, 500) || "Unknown"}`,
@@ -215,7 +217,11 @@ export function contextualTemplateDraft(
   const profile = buildCustomerMessagingProfile(customer);
   const latestReceived = [...messages].reverse().find((item) => item.direction === "received");
   const hasCommunication = messages.length > 0 || followUps.length > 0;
-  const company = englishReference(customer.company, "your business", 240);
+  const company = englishReference(
+    customerDisplayName(customer.company, customer.website, customer.city),
+    "your business",
+    240,
+  );
   const requestedPurpose = englishReference(purpose, "", 500);
   const latestSubject = englishReference(latestReceived?.subject, "", 500);
 

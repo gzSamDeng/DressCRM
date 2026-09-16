@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAppProfile, type AppPermissions, type AppRole } from "@/lib/access-control";
+import { companyNameProposal } from "@/lib/company-name";
 
 export type CreateSystemUserState = {
   ok: boolean;
@@ -128,4 +130,44 @@ export async function createSalesTeam(formData: FormData) {
   const { error } = await admin.from("sales_teams").insert({ name });
   if (error && !/duplicate|unique/i.test(error.message)) throw new Error(error.message);
   revalidatePath("/settings");
+}
+
+export async function repairCustomerCompanyNames() {
+  const owner = await requireOwner();
+  if (!owner) throw new Error("只有老板账号可以批量修正客户企业名称。");
+
+  const admin = createAdminClient();
+  const { data: customers, error } = await admin
+    .from("customers")
+    .select("id,company,website,city")
+    .eq("is_excluded", false);
+  if (error) throw new Error(error.message);
+
+  const proposals = (customers ?? [])
+    .map(companyNameProposal)
+    .filter((proposal): proposal is NonNullable<typeof proposal> => Boolean(proposal));
+
+  for (let index = 0; index < proposals.length; index += 20) {
+    const batch = proposals.slice(index, index + 20);
+    await Promise.all(batch.map(async (proposal) => {
+      const { error: customerError } = await admin
+        .from("customers")
+        .update({ company: proposal.proposed, updated_at: new Date().toISOString() })
+        .eq("id", proposal.id);
+      if (customerError) throw new Error(customerError.message);
+
+      const { error: leadError } = await admin
+        .from("discovered_leads")
+        .update({ company: proposal.proposed })
+        .eq("customer_id", proposal.id);
+      if (leadError && leadError.code !== "42P01") throw new Error(leadError.message);
+    }));
+  }
+
+  revalidatePath("/");
+  revalidatePath("/email");
+  revalidatePath("/follow-up");
+  revalidatePath("/lead-intelligence");
+  revalidatePath("/settings");
+  redirect(`/settings?company_names_updated=${proposals.length}`);
 }

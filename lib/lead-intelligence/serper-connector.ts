@@ -1,4 +1,5 @@
 import type { BuyerSignal, LeadCandidate } from "./types";
+import { resolveCompanyName } from "../company-name.ts";
 
 type SerperOrganicResult = {
   title?: string;
@@ -39,8 +40,10 @@ const blockedHosts = [
 
 function companyFromTitle(title: string, hostname: string) {
   const name = title.split(/\s+[|–—-]\s+/)[0]?.trim();
-  if (name && name.length >= 2 && name.length <= 80) return name;
-  return hostname.replace(/^www\./, "").split(".")[0].replace(/[-_]/g, " ");
+  return resolveCompanyName({
+    company: name && name.length >= 2 && name.length <= 180 ? name : null,
+    website: `https://${hostname}`,
+  });
 }
 
 export function candidateFromSerperResult(result: SerperOrganicResult, country: string): LeadCandidate | null {

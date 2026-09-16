@@ -27,7 +27,7 @@ export function isManualChannel(value: string): value is ManualChannel {
 
 export function channelDraftFallback(customer: Customer, channel: ManualChannel, purpose: string) {
   const profile = buildCustomerMessagingProfile(customer);
-  const company = customerDisplayName(customer.company);
+  const company = customerDisplayName(customer.company, customer.website, customer.city);
   const goal = safeEnglish(purpose, "", 500);
   const relationshipQuestion = profile.archetype === "brand"
     ? "Are you currently developing an upcoming occasionwear collection or reviewing additional production capabilities?"
@@ -120,7 +120,7 @@ export function buildManualChannelContext(
 
   return [
     `Channel: ${channel}`,
-    `Company: ${customerDisplayName(customer.company)}`,
+    `Company: ${customerDisplayName(customer.company, customer.website, customer.city)}`,
     `Website: ${clean(customer.website, 500) || "Unknown"}`,
     `Location: ${[customer.city, customer.country].filter(Boolean).join(", ") || "Unknown"}`,
     "",

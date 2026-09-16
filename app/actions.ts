@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveCompanyName } from "@/lib/company-name";
 import { getAppProfile, isManagementRole } from "@/lib/access-control";
 import { coldCadenceDays, engagedCadenceDays } from "@/lib/follow-up-priority";
 
@@ -326,7 +327,7 @@ export async function approveDiscoveredLead(id: string) {
   let customerId: string | null = lead.customer_id;
   if (!customerId) {
     const customer = {
-      company: lead.company,
+      company: resolveCompanyName({ company: lead.company, website: lead.website, city: lead.city }),
       website: lead.website,
       country: lead.country,
       city: lead.city,
