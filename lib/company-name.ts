@@ -14,6 +14,7 @@ const genericTitlePatterns = [
   /^(?:buy|shop|discover|explore|browse|find)\b/i,
   /^(?:women'?s|ladies|girls|men'?s)\b/i,
   /^(?:long|evening|formal|prom|party|cocktail|wedding|occasion|designer)\s+(?:dress(?:es)?|gowns?|wear|clothing)\b/i,
+  /^(?:mother of the|bridal|affordable|special occasion|modern veils?)\b/i,
   /^(?:fast|free|express|worldwide|next[- ]day)\s+(?:shipping|delivery)\b/i,
   /\b(?:dresses?|gowns?|clothing|fashion)\s+online\b/i,
   /\b(?:free|fast|express|worldwide)\s+(?:shipping|delivery)\b/i,
@@ -97,12 +98,15 @@ export function looksLikeProductOrSeoTitle(company: string | null | undefined) {
 }
 
 export function resolveCompanyName(input: CompanyNameInput) {
-  const current = clean(input.company)
+  const raw = clean(input.company);
+  const current = raw
     .replace(/\s*(?:\.\.\.|…).*$/, "")
     .split(/\s*[:|]\s*/, 1)[0]
     .trim()
     .slice(0, 80);
-  if (current && !looksLikeProductOrSeoTitle(current)) return current;
+  const hasBrandSeparator = /\s*[:|]\s*/.test(raw);
+  if (current && !looksLikeProductOrSeoTitle(current)
+    && (!looksLikeProductOrSeoTitle(raw) || hasBrandSeparator)) return current;
   return companyNameFromWebsite(input.website, input.city) || current || "Unknown Company";
 }
 

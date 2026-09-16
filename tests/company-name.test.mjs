@@ -23,6 +23,17 @@ test("keeps a usable brand prefix from a noisy search title", () => {
   }), "After Five Fashion");
 });
 
+test("uses the domain when an ellipsis leaves only a product fragment", () => {
+  assert.equal(resolveCompanyName({
+    company: "Mother of the ...",
+    website: "https://www.prettyperfectboutique.co.uk",
+  }), "Prettyperfect Boutique");
+  assert.equal(resolveCompanyName({
+    company: "Bridal ...",
+    website: "https://aldaker.com",
+  }), "Aldaker");
+});
+
 test("replaces generic shipping and shopping titles with the domain brand", () => {
   assert.equal(resolveCompanyName({ company: "Fast Shipping", website: "https://www.elilhaam.com" }), "Elilhaam");
   assert.equal(resolveCompanyName({ company: "Buy your Evening dresses online", website: "https://www.bubbleroom.se" }), "Bubbleroom");
